@@ -1,0 +1,28 @@
+# Dependencies
+node_modules/
+frontend/.next/
+frontend/out/
+target/
+**/*.rs.bk
+
+# Env and secrets
+.env
+.env.local
+.env.*.local
+frontend/.env
+frontend/.env.local
+backend/.env
+
+# OS / editor
+.DS_Store
+*.swp
+.idea/
+.vscode/
+
+# Test / coverage
+coverage/
+*.log
+
+# Wokwi / PlatformIO local
+wokwi/.cache/
+wokwi/.pio/

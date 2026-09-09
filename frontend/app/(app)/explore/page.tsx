@@ -1,0 +1,50 @@
+"use client"
+
+import { useQuery } from "@tanstack/react-query"
+
+import { listCollectionPointsAction } from "@/actions/collection-points"
+import { PageContainer } from "@/components/common/page-container"
+import { MachineRowSkeleton } from "@/components/common/page-skeleton"
+import { CollectionPointRow } from "@/components/explore/collection-point-row"
+import { EmptyState } from "@/components/ui"
+import { demoMachine } from "@/lib/utils"
+
+export default function ExplorePage() {
+    const points = useQuery({
+        queryKey: ["explore-points"],
+        queryFn: async () => {
+            const result = await listCollectionPointsAction()
+            if (!result.ok) throw new Error(result.error)
+            return result.data
+        },
+    })
+
+    const machine = demoMachine(points.data ?? [])
+
+    return (
+        <PageContainer>
+            <header className="max-w-xl">
+                <h1 className="font-display text-4xl">The machine</h1>
+                <p className="mt-2 text-muted-foreground">
+                    One site is open. You don&apos;t pick it in the app. Walk up
+                    and get a code.
+                </p>
+            </header>
+
+            <div className="mt-8">
+                {points.isLoading ? (
+                    <MachineRowSkeleton />
+                ) : machine ? (
+                    <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
+                        <CollectionPointRow point={machine} index={0} />
+                    </ul>
+                ) : (
+                    <EmptyState
+                        title="Nothing listed yet"
+                        description="The demo machine shows up here when the site is open."
+                    />
+                )}
+            </div>
+        </PageContainer>
+    )
+}
