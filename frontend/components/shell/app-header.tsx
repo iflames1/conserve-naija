@@ -31,7 +31,6 @@ export function AppHeader({ brand }: { brand: React.ReactNode }) {
     const user = useSessionUser()
     const loading = useSessionLoading()
     const pathname = usePathname()
-    const sessionReady = !loading
     const links = user ? CITIZEN_LINKS : PUBLIC_LINKS
 
     return (
@@ -60,7 +59,7 @@ export function AppHeader({ brand }: { brand: React.ReactNode }) {
                 </nav>
 
                 <div className="ml-auto flex items-center gap-2 sm:gap-3">
-                    {!sessionReady ? (
+                    {loading && !user ? (
                         <HeaderActionsSkeleton />
                     ) : user ? (
                         <>
@@ -74,7 +73,7 @@ export function AppHeader({ brand }: { brand: React.ReactNode }) {
                     )}
                 </div>
             </div>
-            {sessionReady && !user ? (
+            {!loading && !user ? (
                 <div className="flex gap-4 overflow-x-auto border-t border-border/50 px-4 py-2 text-sm md:hidden">
                     {PUBLIC_LINKS.map((link) => (
                         <Link
@@ -96,9 +95,8 @@ export function AppHeader({ brand }: { brand: React.ReactNode }) {
 
 export function CitizenDock() {
     const user = useSessionUser()
-    const loading = useSessionLoading()
     const pathname = usePathname()
-    if (loading || !user) return null
+    if (!user) return null
     if (pathname.startsWith("/organisation") || pathname.startsWith("/admin")) {
         return null
     }

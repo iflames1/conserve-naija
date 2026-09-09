@@ -3,8 +3,8 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { listMyDepositsAction } from "@/actions/deposits"
-import { startRecyclingSessionAction } from "@/actions/sessions"
+import { browserApi } from "@/lib/api/browser"
+import type { Deposit, RecyclingSession } from "@/lib/api/types"
 import { SectionHeader } from "@/components/common/section"
 import { MissionPanel } from "@/components/home/mission-panel"
 import { ActivityHistory } from "@/components/profile/activity-history"
@@ -36,9 +36,10 @@ export function CitizenHome() {
         queryKey: ["my-deposits", user?.id],
         enabled: Boolean(user),
         queryFn: async () => {
-            const result = await listMyDepositsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data.filter((row) => row.status === "confirmed")
+            const rows = await browserApi<Deposit[]>("/me/deposits", {
+                fallback: "Failed to load deposits",
+            })
+            return rows.filter((row) => row.status === "confirmed")
         },
     })
 
@@ -114,13 +115,25 @@ export function CitizenHome() {
                         disabled={starting}
                         onClick={async () => {
                             setStarting(true)
-                            const result = await startRecyclingSessionAction()
-                            setStarting(false)
-                            if (!result.ok) {
-                                push(result.error, "danger")
-                                return
+                            try {
+                                const session = await browserApi<RecyclingSession>(
+                                    "/recycling-sessions",
+                                    {
+                                        method: "POST",
+                                        body: JSON.stringify({}),
+                                        fallback: "Couldn't get a code",
+                                    }
+                                )
+                                setSession(session)
+                            } catch (error) {
+                                push(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Couldn't get a code",
+                                    "danger"
+                                )
                             }
-                            setSession(result.data)
+                            setStarting(false)
                         }}
                     >
                         {starting ? "Getting it…" : "Get a code"}
@@ -141,7 +154,7 @@ export function CitizenHome() {
                 />
                 <ActivityHistory
                     deposits={recent}
-                    loading={deposits.isLoading}
+                    loading={deposits.isPending && !deposits.data}
                     limit={4}
                     empty={
                         <p className="text-sm text-muted-foreground">

@@ -1,10 +1,10 @@
 "use client"
 
-import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { listOrgDepositsAction } from "@/actions/organisation"
+import { browserApi } from "@/lib/api/browser"
 import { EmptyState } from "@/components/ui"
+import type { Deposit } from "@/lib/api/types"
 import { formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
 import { useSessionUser } from "@/stores/session"
 
@@ -13,11 +13,10 @@ export default function OrgActivityPage() {
     const deposits = useQuery({
         queryKey: ["org-deposits", user?.id],
         enabled: Boolean(user),
-        queryFn: async () => {
-            const result = await listOrgDepositsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Deposit[]>("/organisation/deposits", {
+                fallback: "Failed to load organisation activity",
+            }),
     })
 
     return (
@@ -28,7 +27,7 @@ export default function OrgActivityPage() {
                 activity.
             </p>
             <div className="mt-8 space-y-2">
-                {deposits.data?.length ? (
+                {deposits.isPending && !deposits.data ? null : deposits.data?.length ? (
                     deposits.data.map((deposit) => (
                         <div
                             key={deposit.id}

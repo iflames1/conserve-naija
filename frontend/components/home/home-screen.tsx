@@ -15,10 +15,18 @@ export function HomeScreen() {
     const loading = useSessionLoading()
     const { data: session, isPending } = authClient.useSession()
 
-    if (isPending) {
+    if (user) {
         return (
             <PageContainer width="wide">
-                {user ? <HomeScreenSkeleton /> : <GuestLandingSkeleton />}
+                <CitizenHome />
+            </PageContainer>
+        )
+    }
+
+    if (isPending || loading) {
+        return (
+            <PageContainer width="wide">
+                <GuestLandingSkeleton />
             </PageContainer>
         )
     }
@@ -31,17 +39,9 @@ export function HomeScreen() {
         )
     }
 
-    if (loading || !user) {
-        return (
-            <PageContainer width="wide">
-                <HomeScreenSkeleton />
-            </PageContainer>
-        )
-    }
-
     return (
         <PageContainer width="wide">
-            <CitizenHome />
+            <HomeScreenSkeleton />
         </PageContainer>
     )
 }

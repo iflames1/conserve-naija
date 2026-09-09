@@ -2,10 +2,7 @@
 
 import * as React from "react"
 
-import {
-    cancelRecyclingSessionAction,
-    startRecyclingSessionAction,
-} from "@/actions/sessions"
+import { browserApi } from "@/lib/api/browser"
 import { Badge, Button, LiveDot } from "@/components/ui"
 import {
     formatKg,
@@ -187,13 +184,24 @@ export function MissionPanel() {
                         disabled={busy}
                         onClick={async () => {
                             setBusy(true)
-                            const result = await cancelRecyclingSessionAction(session.id)
-                            setBusy(false)
-                            if (!result.ok) {
-                                push(result.error, "danger")
-                                return
+                            try {
+                                await browserApi(
+                                    `/recycling-sessions/${session.id}/cancel`,
+                                    {
+                                        method: "POST",
+                                        fallback: "Couldn't cancel this",
+                                    }
+                                )
+                                clearSession()
+                            } catch (error) {
+                                push(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Couldn't cancel this",
+                                    "danger"
+                                )
                             }
-                            clearSession()
+                            setBusy(false)
                         }}
                     >
                         Later
@@ -204,13 +212,25 @@ export function MissionPanel() {
                         disabled={busy}
                         onClick={async () => {
                             setBusy(true)
-                            const result = await startRecyclingSessionAction()
-                            setBusy(false)
-                            if (!result.ok) {
-                                push(result.error, "danger")
-                                return
+                            try {
+                                const next = await browserApi<RecyclingSession>(
+                                    "/recycling-sessions",
+                                    {
+                                        method: "POST",
+                                        body: JSON.stringify({}),
+                                        fallback: "Couldn't get a code",
+                                    }
+                                )
+                                setSession(next)
+                            } catch (error) {
+                                push(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Couldn't get a code",
+                                    "danger"
+                                )
                             }
-                            setSession(result.data)
+                            setBusy(false)
                         }}
                     >
                         Get another code

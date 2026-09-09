@@ -22,7 +22,7 @@ function getApiBaseUrl() {
     return apiUrl()
 }
 
-const API_TIMEOUT_MS = 20_000
+const API_TIMEOUT_MS = 8_000
 
 function apiRequest(url: string, init?: RequestInit) {
     return fetch(url, {

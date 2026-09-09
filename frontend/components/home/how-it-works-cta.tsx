@@ -7,22 +7,24 @@ export function HowItWorksCta() {
     const user = useSessionUser()
     const loading = useSessionLoading()
 
-    if (loading || !user) {
+    if (user) {
         return (
-            <div className="flex flex-wrap items-center gap-3">
-                <ButtonLink href="/auth/sign-up" variant="primary">
-                    Create an account
-                </ButtonLink>
-                <ButtonLink href="/explore" variant="ghost">
-                    Find a machine
-                </ButtonLink>
-            </div>
+            <ButtonLink href="/" variant="primary">
+                Get a code
+            </ButtonLink>
         )
     }
 
+    if (loading) return null
+
     return (
-        <ButtonLink href="/" variant="primary">
-            Get a code
-        </ButtonLink>
+        <div className="flex flex-wrap items-center gap-3">
+            <ButtonLink href="/auth/sign-up" variant="primary">
+                Create an account
+            </ButtonLink>
+            <ButtonLink href="/explore" variant="ghost">
+                Find a machine
+            </ButtonLink>
+        </div>
     )
 }

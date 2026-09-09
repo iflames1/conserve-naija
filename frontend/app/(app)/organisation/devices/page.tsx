@@ -3,13 +3,8 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import {
-    associateDeviceAction,
-    deactivateDeviceAction,
-    listOrgCollectionPointsAction,
-    listOrgDevicesAction,
-    registerDeviceAction,
-} from "@/actions/organisation"
+import { browserApi } from "@/lib/api/browser"
+import type { CollectionPoint, Device } from "@/lib/api/types"
 import {
     Badge,
     Button,
@@ -28,10 +23,11 @@ import {
 import { OrgFormPageSkeleton } from "@/components/common/page-skeleton"
 import { formatRelativeTime } from "@/lib/utils"
 import { useNotificationActions } from "@/stores/notifications"
-import { useSessionUser } from "@/stores/session"
+import { useSessionLoading, useSessionUser } from "@/stores/session"
 
 export default function MachinesPage() {
     const user = useSessionUser()
+    const loading = useSessionLoading()
     const { push } = useNotificationActions()
     const [externalId, setExternalId] = React.useState("")
     const [collectionPointId, setCollectionPointId] = React.useState("")
@@ -41,29 +37,22 @@ export default function MachinesPage() {
     const devices = useQuery({
         queryKey: ["org-devices", user?.id],
         enabled: Boolean(user),
-        queryFn: async () => {
-            const result = await listOrgDevicesAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Device[]>("/organisation/devices", {
+                fallback: "Failed to load devices",
+            }),
     })
     const points = useQuery({
         queryKey: ["org-points", user?.id],
         enabled: Boolean(user),
-        queryFn: async () => {
-            const result = await listOrgCollectionPointsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<CollectionPoint[]>("/organisation/collection-points", {
+                fallback: "Failed to load organisation points",
+            }),
     })
 
-    const [ready, setReady] = React.useState(false)
-    React.useEffect(() => {
-        setReady(true)
-    }, [])
-
-    if (!ready) return <OrgFormPageSkeleton titleWidth="w-36" />
     if (!user) {
+        if (loading) return <OrgFormPageSkeleton titleWidth="w-36" />
         return (
             <EmptyState
                 title="Sign in first"
@@ -89,17 +78,30 @@ export default function MachinesPage() {
                         className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
                         onSubmit={async (event) => {
                             event.preventDefault()
-                            const result = await registerDeviceAction({
-                                externalId,
-                                collectionPointId: collectionPointId || undefined,
-                            })
-                            if (!result.ok) {
-                                push(result.error, "danger")
-                                return
+                            try {
+                                const registered = await browserApi<{
+                                    device: Device
+                                    apiKey: string
+                                }>("/organisation/devices", {
+                                    method: "POST",
+                                    body: JSON.stringify({
+                                        externalId,
+                                        collectionPointId:
+                                            collectionPointId || undefined,
+                                    }),
+                                    fallback: "Failed to register device",
+                                })
+                                setApiKey(registered.apiKey)
+                                setExternalId("")
+                                void devices.refetch()
+                            } catch (error) {
+                                push(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Failed to register device",
+                                    "danger"
+                                )
                             }
-                            setApiKey(result.data.apiKey)
-                            setExternalId("")
-                            void devices.refetch()
                         }}
                     >
                         <div className="grid gap-2">
@@ -181,12 +183,29 @@ export default function MachinesPage() {
                                         event.preventDefault()
                                         const selectedPointId = pointIds[device.id]
                                         if (!selectedPointId) return
-                                        const result = await associateDeviceAction({
-                                            deviceId: device.id,
-                                            collectionPointId: selectedPointId,
-                                        })
-                                        if (!result.ok) push(result.error, "danger")
-                                        else void devices.refetch()
+                                        try {
+                                            await browserApi(
+                                                "/organisation/devices/associate",
+                                                {
+                                                    method: "POST",
+                                                    body: JSON.stringify({
+                                                        deviceId: device.id,
+                                                        collectionPointId:
+                                                            selectedPointId,
+                                                    }),
+                                                    fallback:
+                                                        "Failed to associate device",
+                                                }
+                                            )
+                                            void devices.refetch()
+                                        } catch (error) {
+                                            push(
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to associate device",
+                                                "danger"
+                                            )
+                                        }
                                     }}
                                 >
                                     <Select
@@ -224,9 +243,24 @@ export default function MachinesPage() {
                                         size="sm"
                                         variant="ghost"
                                         onClick={async () => {
-                                            const result = await deactivateDeviceAction(device.id)
-                                            if (!result.ok) push(result.error, "danger")
-                                            else void devices.refetch()
+                                            try {
+                                                await browserApi(
+                                                    `/organisation/devices/${device.id}/deactivate`,
+                                                    {
+                                                        method: "POST",
+                                                        fallback:
+                                                            "Failed to deactivate machine",
+                                                    }
+                                                )
+                                                void devices.refetch()
+                                            } catch (error) {
+                                                push(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to deactivate machine",
+                                                    "danger"
+                                                )
+                                            }
                                         }}
                                     >
                                         Deactivate

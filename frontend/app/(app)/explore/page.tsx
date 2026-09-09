@@ -2,7 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query"
 
-import { listCollectionPointsAction } from "@/actions/collection-points"
+import { browserApi } from "@/lib/api/browser"
+import type { CollectionPoint } from "@/lib/api/types"
 import { PageContainer } from "@/components/common/page-container"
 import { MachineRowSkeleton } from "@/components/common/page-skeleton"
 import { CollectionPointRow } from "@/components/explore/collection-point-row"
@@ -12,11 +13,11 @@ import { demoMachine } from "@/lib/utils"
 export default function ExplorePage() {
     const points = useQuery({
         queryKey: ["explore-points"],
-        queryFn: async () => {
-            const result = await listCollectionPointsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<CollectionPoint[]>("/collection-points", {
+                auth: false,
+                fallback: "Failed to load collection points",
+            }),
     })
 
     const machine = demoMachine(points.data ?? [])
@@ -32,11 +33,11 @@ export default function ExplorePage() {
             </header>
 
             <div className="mt-8">
-                {points.isLoading ? (
+                {points.isPending && !points.data ? (
                     <MachineRowSkeleton />
                 ) : machine ? (
                     <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
-                        <CollectionPointRow point={machine} index={0} />
+                        <CollectionPointRow point={machine} />
                     </ul>
                 ) : (
                     <EmptyState

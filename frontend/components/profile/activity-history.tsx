@@ -44,12 +44,8 @@ export function ActivityHistory({
 
     return (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
-            {rows.map((deposit, index) => (
-                <li
-                    key={deposit.id}
-                    className="stagger animate-rise-in"
-                    style={{ "--index": index } as React.CSSProperties}
-                >
+            {rows.map((deposit) => (
+                <li key={deposit.id}>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                         <span className="tnum grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-xs text-primary">
                             {(deposit.materialName ?? "?").slice(0, 1).toUpperCase()}

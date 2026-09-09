@@ -3,7 +3,8 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import { listOrgMaterialsAction, setMaterialPriceAction } from "@/actions/organisation"
+import { browserApi } from "@/lib/api/browser"
+import type { Material } from "@/lib/api/types"
 import { Button, Card, CardContent, Input } from "@/components/ui"
 import { formatNaira } from "@/lib/utils"
 import { useNotificationActions } from "@/stores/notifications"
@@ -17,11 +18,10 @@ export default function PricingPage() {
     const materials = useQuery({
         queryKey: ["org-materials", user?.id],
         enabled: Boolean(user),
-        queryFn: async () => {
-            const result = await listOrgMaterialsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Material[]>("/organisation/materials", {
+                fallback: "Failed to load materials",
+            }),
     })
 
     return (
@@ -43,16 +43,29 @@ export default function PricingPage() {
                                         drafts[material.id] ??
                                         String(material.pricePerKgNaira ?? "")
                                     const price = Number(raw)
-                                    const result = await setMaterialPriceAction({
-                                        materialId: material.id,
-                                        pricePerKgNaira: price,
-                                    })
-                                    if (!result.ok) push(result.error, "danger")
-                                    else {
+                                    try {
+                                        await browserApi(
+                                            "/organisation/material-prices",
+                                            {
+                                                method: "POST",
+                                                body: JSON.stringify({
+                                                    materialId: material.id,
+                                                    pricePerKgNaira: price,
+                                                }),
+                                                fallback: "Failed to update price",
+                                            }
+                                        )
                                         push(
                                             `${material.name} is now ${formatNaira(price)} / kg`
                                         )
                                         void materials.refetch()
+                                    } catch (error) {
+                                        push(
+                                            error instanceof Error
+                                                ? error.message
+                                                : "Failed to update price",
+                                            "danger"
+                                        )
                                     }
                                 }}
                             >

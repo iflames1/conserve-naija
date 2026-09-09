@@ -1,5 +1,6 @@
 "use client"
 
+import { useQueryClient } from "@tanstack/react-query"
 import * as React from "react"
 
 import { browserApi } from "@/lib/api/browser"
@@ -11,6 +12,7 @@ import { clearAccessTokenCache } from "@/lib/auth/browser-token"
 import { useSessionActions, useSessionStore } from "@/stores/session"
 
 export function AuthSync() {
+    const queryClient = useQueryClient()
     const { data: session, isPending } = authClient.useSession()
     const { setUser, setLoading } = useSessionActions()
     const id = session?.user?.id ?? null
@@ -22,6 +24,7 @@ export function AuthSync() {
     React.useLayoutEffect(() => {
         if (isPending) return
         if (!id || !email) {
+            if (useSessionStore.getState().user) queryClient.clear()
             setUser(null)
             setLoading(false)
             clearAccessTokenCache()
@@ -40,7 +43,7 @@ export function AuthSync() {
             )
         }
         setLoading(false)
-    }, [isPending, id, email, name, image, emailVerified, setLoading, setUser])
+    }, [isPending, id, email, name, image, emailVerified, queryClient, setLoading, setUser])
 
     React.useEffect(() => {
         if (isPending || !id || !email) return
