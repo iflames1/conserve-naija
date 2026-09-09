@@ -1,10 +1,9 @@
 "use client"
 
-import type { CSSProperties } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { RiArrowRightLine } from "@remixicon/react"
 
-import { listCollectionPointsAction } from "@/actions/collection-points"
+import { browserApi } from "@/lib/api/browser"
 import { MachineRowItemSkeleton } from "@/components/common/page-skeleton"
 import { CollectionPointRow } from "@/components/explore/collection-point-row"
 import { MachineKiosk } from "@/components/home/machine-kiosk"
@@ -30,11 +29,11 @@ const STEPS = [
 export function GuestLanding() {
     const points = useQuery({
         queryKey: ["explore-points"],
-        queryFn: async () => {
-            const result = await listCollectionPointsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<CollectionPoint[]>("/collection-points", {
+                auth: false,
+                fallback: "Failed to load collection points",
+            }),
     })
     const all = points.data ?? []
     const machine = demoMachine(all)
@@ -123,8 +122,7 @@ export function GuestLanding() {
                     {STEPS.map((step, index) => (
                         <li
                             key={step.title}
-                            className="stagger animate-rise-in flex gap-4 px-4 py-5 sm:px-5"
-                            style={{ "--index": index } as CSSProperties}
+                            className="flex gap-4 px-4 py-5 sm:px-5"
                         >
                             <span className="tnum grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-sm text-primary">
                                 {index + 1}
@@ -152,14 +150,13 @@ export function GuestLanding() {
                     </div>
                 </div>
                 <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
-                    {points.isLoading ? (
+                    {points.isPending && !points.data ? (
                         <MachineRowItemSkeleton />
                     ) : listed.length ? (
-                        listed.map((point, index) => (
+                        listed.map((point) => (
                             <CollectionPointRow
                                 key={point.id}
                                 point={point}
-                                index={index}
                             />
                         ))
                     ) : (

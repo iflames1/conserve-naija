@@ -1,6 +1,10 @@
 "use client"
 
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+    keepPreviousData,
+    QueryClient,
+    QueryClientProvider,
+} from "@tanstack/react-query"
 import * as React from "react"
 
 import { AuthSync } from "@/components/auth/auth-sync"
@@ -14,7 +18,9 @@ export function Provider({ children }: { children: React.ReactNode }) {
                 defaultOptions: {
                     queries: {
                         staleTime: 30_000,
+                        gcTime: 5 * 60_000,
                         refetchOnWindowFocus: false,
+                        placeholderData: keepPreviousData,
                     },
                 },
             })

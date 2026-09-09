@@ -3,11 +3,8 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import {
-    acceptPickupAction,
-    completePickupAction,
-    listOrgPickupsAction,
-} from "@/actions/organisation"
+import { browserApi } from "@/lib/api/browser"
+import type { Pickup } from "@/lib/api/types"
 import { Badge, Button, Card, CardContent, EmptyState } from "@/components/ui"
 import { formatKg } from "@/lib/utils"
 import { useNotificationActions } from "@/stores/notifications"
@@ -26,11 +23,10 @@ export default function OrgPickupsPage() {
     const pickups = useQuery({
         queryKey: ["org-pickups", user?.id],
         enabled: Boolean(user),
-        queryFn: async () => {
-            const result = await listOrgPickupsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Pickup[]>("/organisation/pickups", {
+                fallback: "Failed to load pickups",
+            }),
     })
 
     return (
@@ -41,7 +37,7 @@ export default function OrgPickupsPage() {
                 done.
             </p>
             <div className="mt-8 space-y-3">
-                {pickups.data?.length ? (
+                {pickups.isPending && !pickups.data ? null : pickups.data?.length ? (
                     pickups.data.map((pickup) => (
                         <Card key={pickup.id}>
                             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
@@ -65,9 +61,24 @@ export default function OrgPickupsPage() {
                                             size="sm"
                                             variant="primary"
                                             onClick={async () => {
-                                                const result = await acceptPickupAction(pickup.id)
-                                                if (!result.ok) push(result.error, "danger")
-                                                else void pickups.refetch()
+                                                try {
+                                                    await browserApi(
+                                                        `/pickups/${pickup.id}/accept`,
+                                                        {
+                                                            method: "POST",
+                                                            body: JSON.stringify({}),
+                                                            fallback: "Failed to accept pickup",
+                                                        }
+                                                    )
+                                                    void pickups.refetch()
+                                                } catch (error) {
+                                                    push(
+                                                        error instanceof Error
+                                                            ? error.message
+                                                            : "Failed to accept pickup",
+                                                        "danger"
+                                                    )
+                                                }
                                             }}
                                         >
                                             Accept
@@ -78,9 +89,25 @@ export default function OrgPickupsPage() {
                                             size="sm"
                                             variant="primary"
                                             onClick={async () => {
-                                                const result = await completePickupAction(pickup.id)
-                                                if (!result.ok) push(result.error, "danger")
-                                                else void pickups.refetch()
+                                                try {
+                                                    await browserApi(
+                                                        `/pickups/${pickup.id}/complete`,
+                                                        {
+                                                            method: "POST",
+                                                            body: JSON.stringify({}),
+                                                            fallback:
+                                                                "Failed to complete pickup",
+                                                        }
+                                                    )
+                                                    void pickups.refetch()
+                                                } catch (error) {
+                                                    push(
+                                                        error instanceof Error
+                                                            ? error.message
+                                                            : "Failed to complete pickup",
+                                                        "danger"
+                                                    )
+                                                }
                                             }}
                                         >
                                             Mark collected

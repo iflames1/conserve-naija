@@ -24,16 +24,19 @@ async function parse<T>(response: Response, fallback: string): Promise<T> {
 /** Browser → API. Avoids Next.js server-action ↔ JWKS deadlock. */
 export async function browserApi<T>(
     path: string,
-    init: RequestInit & { fallback?: string } = {}
+    init: RequestInit & { fallback?: string; auth?: boolean } = {}
 ): Promise<T> {
-    const { fallback = "Request failed", ...rest } = init
+    const { fallback = "Request failed", auth = true, ...rest } = init
+    const headers: HeadersInit = {
+        ...(auth
+            ? await authHeaders()
+            : { "content-type": "application/json" }),
+        ...rest.headers,
+    }
     const response = await fetch(`${publicApiUrl()}${path}`, {
         cache: "no-store",
         ...rest,
-        headers: {
-            ...(await authHeaders()),
-            ...rest.headers,
-        },
+        headers,
         signal: rest.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
     })
     return parse<T>(response, fallback)

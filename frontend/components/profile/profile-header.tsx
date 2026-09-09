@@ -6,7 +6,7 @@ import { cn, formatDate, formatNaira, formatPoints } from "@/lib/utils"
 
 export function ProfileHeader({ user }: { user: AppUser }) {
     return (
-        <header className="relative isolate animate-rise-in overflow-hidden rounded-2xl border border-border/70 surface-raised">
+        <header className="relative isolate overflow-hidden rounded-2xl border border-border/70 surface-raised">
             <div aria-hidden className="absolute inset-0 -z-10 bg-grid" />
             <div
                 aria-hidden

@@ -1,5 +1,3 @@
-import type { CSSProperties } from "react"
-
 import { Badge } from "@/components/ui"
 import type { CollectionPoint } from "@/lib/api/types"
 import {
@@ -10,10 +8,8 @@ import {
 
 export function CollectionPointRow({
     point,
-    index = 0,
 }: {
     point: CollectionPoint
-    index?: number
 }) {
     const open = machineIsOpen(point.status)
     const prices =
@@ -26,10 +22,7 @@ export function CollectionPointRow({
             .join(" · ") || "Prices on the machine"
 
     return (
-        <li
-            className="stagger animate-rise-in px-4 py-4 sm:px-5"
-            style={{ "--index": index } as CSSProperties}
-        >
+        <li className="px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
                     <h2 className="font-display text-lg">{point.name}</h2>

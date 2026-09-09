@@ -4,7 +4,8 @@ import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 import { RiLogoutBoxRLine } from "@remixicon/react"
 
-import { listMyDepositsAction } from "@/actions/deposits"
+import { browserApi } from "@/lib/api/browser"
+import type { Deposit } from "@/lib/api/types"
 import { PageContainer } from "@/components/common/page-container"
 import { ProfilePageSkeleton } from "@/components/common/page-skeleton"
 import { SectionHeader } from "@/components/common/section"
@@ -24,21 +25,21 @@ export default function ProfilePage() {
         queryKey: ["my-deposits", user?.id],
         enabled: Boolean(user),
         queryFn: async () => {
-            const result = await listMyDepositsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data.filter((row) => row.status === "confirmed")
+            const rows = await browserApi<Deposit[]>("/me/deposits", {
+                fallback: "Failed to load deposits",
+            })
+            return rows.filter((row) => row.status === "confirmed")
         },
     })
 
-    if (loading) {
-        return (
-            <PageContainer width="wide">
-                <ProfilePageSkeleton />
-            </PageContainer>
-        )
-    }
-
     if (!user) {
+        if (loading) {
+            return (
+                <PageContainer width="wide">
+                    <ProfilePageSkeleton />
+                </PageContainer>
+            )
+        }
         return (
             <PageContainer>
                 <EmptyState
@@ -53,7 +54,7 @@ export default function ProfilePage() {
         )
     }
 
-    const org = user.organisations[0]
+    const org = user.organisations?.[0]
     const dropCount = deposits.data?.length ?? user.depositCount ?? 0
 
     return (
@@ -72,7 +73,7 @@ export default function ProfilePage() {
                 />
                 <ActivityHistory
                     deposits={deposits.data ?? []}
-                    loading={deposits.isLoading}
+                    loading={deposits.isPending && !deposits.data}
                 />
             </section>
 

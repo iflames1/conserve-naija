@@ -1,6 +1,5 @@
 "use client"
 
-import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { browserApi } from "@/lib/api/browser"
@@ -48,11 +47,6 @@ export function OrganisationDashboard() {
     const user = useSessionUser()
     const loading = useSessionLoading()
     const { push } = useNotificationActions()
-    const [ready, setReady] = React.useState(false)
-
-    React.useEffect(() => {
-        setReady(true)
-    }, [])
 
     const enabled = Boolean(user?.organisations?.length)
     const overview = useQuery({
@@ -96,8 +90,8 @@ export function OrganisationDashboard() {
             }),
     })
 
-    if (!ready || loading) return <OrgDashboardSkeleton />
     if (!user) {
+        if (loading) return <OrgDashboardSkeleton />
         return (
             <EmptyState
                 title="Sign in first"
@@ -237,7 +231,7 @@ export function OrganisationDashboard() {
                             </p>
                         </div>
                     ))}
-                    {!deposits.data?.length ? (
+                    {!deposits.data?.length && !deposits.isPending ? (
                         <p className="text-sm text-muted-foreground">
                             Drops show up here after a machine weighs them.
                         </p>

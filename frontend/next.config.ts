@@ -1,6 +1,11 @@
 import type { NextConfig } from "next"
 
 const nextConfig: NextConfig = {
+    experimental: {
+        staleTimes: {
+            dynamic: 30,
+        },
+    },
     env: {
         DISABLE_VERIFICATION: process.env.DISABLE_VERIFICATION ?? "1",
         API_URL: process.env.API_URL ?? "",

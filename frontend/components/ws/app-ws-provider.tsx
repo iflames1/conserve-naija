@@ -2,8 +2,8 @@
 
 import * as React from "react"
 
-import { getActiveRecyclingSessionAction } from "@/actions/sessions"
 import { getBrowserAccessToken } from "@/lib/auth/browser-token"
+import { browserApi } from "@/lib/api/browser"
 import { appSocket } from "@/lib/ws/app-socket"
 import type { RecyclingSession } from "@/lib/api/types"
 import type { WsEnvelope } from "@/lib/ws/protocol"
@@ -50,10 +50,14 @@ export function AppWsProvider() {
     React.useEffect(() => {
         if (!user) return
         let cancelled = false
-        void getActiveRecyclingSessionAction().then((result) => {
-            if (cancelled || !result.ok) return
-            live.setSession(result.data)
-        })
+        void browserApi<RecyclingSession | null>(
+            "/recycling-sessions/active",
+            { fallback: "Couldn't load your code" }
+        )
+            .then((session) => {
+                if (!cancelled && session) live.setSession(session)
+            })
+            .catch(() => {})
         return () => {
             cancelled = true
         }
