@@ -1,10 +1,10 @@
-import { apiUrl } from "@/lib/config"
+import { getBrowserAccessToken } from "@/lib/auth/browser-token"
+import { publicApiUrl } from "@/lib/config"
 
-const API_TIMEOUT_MS = 20_000
+const API_TIMEOUT_MS = 8_000
 
 async function authHeaders(): Promise<HeadersInit> {
-    const { getAccessTokenAction } = await import("@/actions/auth-token")
-    const token = await getAccessTokenAction()
+    const token = await getBrowserAccessToken()
     return {
         "content-type": "application/json",
         Authorization: `Bearer ${token}`,
@@ -27,7 +27,7 @@ export async function browserApi<T>(
     init: RequestInit & { fallback?: string } = {}
 ): Promise<T> {
     const { fallback = "Request failed", ...rest } = init
-    const response = await fetch(`${apiUrl()}${path}`, {
+    const response = await fetch(`${publicApiUrl()}${path}`, {
         cache: "no-store",
         ...rest,
         headers: {

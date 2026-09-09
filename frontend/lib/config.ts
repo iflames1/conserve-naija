@@ -42,6 +42,13 @@ export function apiUrl(): string {
     return (process.env.API_URL ?? LOCAL_API_URL).replace(/\/$/, "")
 }
 
+/** Browser calls must use the public API origin, not a private/server URL. */
+export function publicApiUrl(): string {
+    const fromPublic = process.env.NEXT_PUBLIC_API_URL?.trim()
+    if (fromPublic) return fromPublic.replace(/\/$/, "")
+    return apiUrl()
+}
+
 export function wsUrl(): string {
     const publicApi = process.env.NEXT_PUBLIC_API_URL?.trim()
     const api = (publicApi || LOCAL_API_URL).replace(/\/$/, "")

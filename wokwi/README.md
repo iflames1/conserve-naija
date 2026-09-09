@@ -1,6 +1,19 @@
 # Wokwi Conserve machine
 
-Public sim: [https://wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977)
+Public sim (prebuilt firmware, no Wokwi cloud compile):
+
+[Open in Wokwi viewer](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Fdiagram.json&firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Ffirmware.bin)
+
+That firmware talks to `https://conserve-naija-production.up.railway.app`. Assets live in the public repo [iflames1/conserve-naija-wokwi](https://github.com/iflames1/conserve-naija-wokwi). After you change the sketch:
+
+```bash
+cd wokwi
+pio run
+cp .pio/build/esp32dev/firmware.bin /tmp/firmware.bin
+# then replace firmware.bin on conserve-naija-wokwi and push
+```
+
+Sketch-only Wokwi project (uses their compilers, often queued): [wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977)
 
 This is a real ESP32 project. It speaks the same backend protocol as `cn-simulator`:
 

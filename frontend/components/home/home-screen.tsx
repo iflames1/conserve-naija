@@ -7,7 +7,6 @@ import {
 import { PageContainer } from "@/components/common/page-container"
 import { CitizenHome } from "@/components/home/citizen-home"
 import { GuestLanding } from "@/components/home/guest-landing"
-import { Button, EmptyState } from "@/components/ui"
 import { authClient } from "@/lib/auth/client"
 import { useSessionLoading, useSessionUser } from "@/stores/session"
 
@@ -32,29 +31,10 @@ export function HomeScreen() {
         )
     }
 
-    if (loading) {
+    if (loading || !user) {
         return (
             <PageContainer width="wide">
                 <HomeScreenSkeleton />
-            </PageContainer>
-        )
-    }
-
-    if (!user) {
-        return (
-            <PageContainer width="wide">
-                <EmptyState
-                    title="Your account is almost ready"
-                    description="Give it another go. We'll pick up where you left off."
-                    action={
-                        <Button
-                            variant="primary"
-                            onClick={() => window.location.reload()}
-                        >
-                            Try again
-                        </Button>
-                    }
-                />
             </PageContainer>
         )
     }
