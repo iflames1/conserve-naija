@@ -121,7 +121,7 @@ impl PgUserRepo {
             WHERE email = $1
             "#,
         )
-        .bind(email)
+        .bind(email.trim().to_lowercase())
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;

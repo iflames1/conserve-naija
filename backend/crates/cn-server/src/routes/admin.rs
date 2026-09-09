@@ -141,7 +141,7 @@ async fn add_member(
 ) -> AppResult<Json<serde_json::Value>> {
     require_platform_admin(&state, &auth).await?;
     let user = PgUserRepo::new(state.db.clone())
-        .get_by_email(body.email.trim())
+        .get_by_email(&body.email.trim().to_lowercase())
         .await?
         .ok_or(AppError::NotFound("user"))?;
     PgOrganisationRepo::new(state.db.clone())

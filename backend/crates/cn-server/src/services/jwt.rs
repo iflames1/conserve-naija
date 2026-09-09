@@ -1,12 +1,13 @@
 //! Better Auth JWT verification (EdDSA + JWKS).
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use jsonwebtoken::{Algorithm, DecodingKey, Validation, decode, decode_header};
 use parking_lot::RwLock;
 use serde::Deserialize;
 use serde_json::Value;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::error::{AppError, AppResult};
@@ -56,26 +57,37 @@ struct RawClaims {
 
 struct JwksCache {
     keys: Vec<(String, DecodingKey)>,
-    fetched_at: Instant,
 }
 
 pub struct JwtVerifier {
     config: JwtConfig,
     http: reqwest::Client,
     cache: RwLock<Option<JwksCache>>,
+    refresh: Mutex<()>,
 }
 
 impl JwtVerifier {
     pub fn new(config: JwtConfig) -> Self {
         Self {
             config,
-            http: reqwest::Client::new(),
+            http: reqwest::Client::builder()
+                .timeout(Duration::from_secs(5))
+                .connect_timeout(Duration::from_secs(3))
+                .build()
+                .expect("jwt http client"),
             cache: RwLock::new(None),
+            refresh: Mutex::new(()),
         }
     }
 
     pub fn arc(config: JwtConfig) -> Arc<Self> {
         Arc::new(Self::new(config))
+    }
+
+    /// Pull JWKS before serving traffic so auth does not wait on the Next.js app
+    /// from inside a request that originated there (server-action deadlock).
+    pub async fn prefetch(&self) -> AppResult<()> {
+        self.refresh_jwks().await
     }
 
     pub async fn verify(&self, token: &str) -> AppResult<JwtClaims> {
@@ -125,32 +137,44 @@ impl JwtVerifier {
         if let Some(key) = self.cached_key(kid) {
             return Ok(key);
         }
-        self.refresh_jwks().await?;
+        {
+            let _guard = self.refresh.lock().await;
+            if let Some(key) = self.cached_key(kid) {
+                return Ok(key);
+            }
+            self.refresh_jwks_locked().await?;
+        }
         self.cached_key(kid)
             .ok_or(AppError::Unauthorized("unknown token kid"))
     }
 
     fn cached_key(&self, kid: &str) -> Option<DecodingKey> {
         let guard = self.cache.read();
-        let cache = guard.as_ref()?;
-        if cache.fetched_at.elapsed() > Duration::from_secs(3600) {
-            return None;
-        }
-        cache
-            .keys
-            .iter()
-            .find(|(k, _)| k == kid)
-            .map(|(_, key)| key.clone())
+        guard.as_ref()?.keys.iter().find(|(k, _)| k == kid).map(|(_, key)| key.clone())
     }
 
     async fn refresh_jwks(&self) -> AppResult<()> {
-        let res = self
-            .http
-            .get(&self.config.jwks_url)
-            .send()
-            .await
-            .map_err(|e| AppError::Internal(e.into()))?;
+        let _guard = self.refresh.lock().await;
+        self.refresh_jwks_locked().await
+    }
+
+    async fn refresh_jwks_locked(&self) -> AppResult<()> {
+        tracing::debug!(url = %self.config.jwks_url, "refreshing JWKS");
+        let res = match self.http.get(&self.config.jwks_url).send().await {
+            Ok(res) => res,
+            Err(err) => {
+                if self.cache.read().is_some() {
+                    tracing::warn!(error = %err, "JWKS refresh failed; keeping stale keys");
+                    return Ok(());
+                }
+                return Err(AppError::Internal(err.into()));
+            }
+        };
         if !res.status().is_success() {
+            if self.cache.read().is_some() {
+                tracing::warn!(status = %res.status(), "JWKS refresh failed; keeping stale keys");
+                return Ok(());
+            }
             return Err(AppError::Internal(anyhow::anyhow!(
                 "JWKS fetch failed: {}",
                 res.status()
@@ -184,14 +208,15 @@ impl JwtVerifier {
             }
         }
         if keys.is_empty() {
+            if self.cache.read().is_some() {
+                tracing::warn!("JWKS contained no usable Ed25519 keys; keeping stale keys");
+                return Ok(());
+            }
             return Err(AppError::Internal(anyhow::anyhow!(
                 "JWKS contained no usable Ed25519 keys"
             )));
         }
-        *self.cache.write() = Some(JwksCache {
-            keys,
-            fetched_at: Instant::now(),
-        });
+        *self.cache.write() = Some(JwksCache { keys });
         Ok(())
     }
 }

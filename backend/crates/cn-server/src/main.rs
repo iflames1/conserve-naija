@@ -25,6 +25,9 @@ async fn main() -> anyhow::Result<()> {
         .await
         .context("postgres")?;
     let state = AppState::new(config.clone(), db);
+    if let Err(err) = state.jwt.prefetch().await {
+        tracing::warn!(error = %err, "JWKS not cached yet; first login may fetch it");
+    }
     let app = routes::router(state);
 
     let addr = SocketAddr::from((config.host, config.port));

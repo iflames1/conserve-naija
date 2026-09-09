@@ -3,15 +3,14 @@
 import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
-import {
-    acceptPickupAction,
-    completePickupAction,
-    getOrganisationOverviewAction,
-    listOrgCollectionPointsAction,
-    listOrgDepositsAction,
-    listOrgDevicesAction,
-    listOrgPickupsAction,
-} from "@/actions/organisation"
+import { browserApi } from "@/lib/api/browser"
+import type {
+    CollectionPoint,
+    Deposit,
+    Device,
+    OrganisationOverview,
+    Pickup,
+} from "@/lib/api/types"
 import {
     Badge,
     Button,
@@ -55,51 +54,46 @@ export function OrganisationDashboard() {
         setReady(true)
     }, [])
 
-    const enabled = Boolean(user?.organisations.length)
+    const enabled = Boolean(user?.organisations?.length)
     const overview = useQuery({
         queryKey: ["org-overview", user?.id],
         enabled,
-        queryFn: async () => {
-            const result = await getOrganisationOverviewAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<OrganisationOverview>("/organisation", {
+                fallback: "Failed to load organisation",
+            }),
     })
     const points = useQuery({
         queryKey: ["org-points", user?.id],
         enabled,
-        queryFn: async () => {
-            const result = await listOrgCollectionPointsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<CollectionPoint[]>("/organisation/collection-points", {
+                fallback: "Failed to load organisation points",
+            }),
     })
     const devices = useQuery({
         queryKey: ["org-devices", user?.id],
         enabled,
-        queryFn: async () => {
-            const result = await listOrgDevicesAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Device[]>("/organisation/devices", {
+                fallback: "Failed to load devices",
+            }),
     })
     const pickups = useQuery({
         queryKey: ["org-pickups", user?.id],
         enabled,
-        queryFn: async () => {
-            const result = await listOrgPickupsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Pickup[]>("/organisation/pickups", {
+                fallback: "Failed to load pickups",
+            }),
     })
     const deposits = useQuery({
         queryKey: ["org-deposits", user?.id],
         enabled,
-        queryFn: async () => {
-            const result = await listOrgDepositsAction()
-            if (!result.ok) throw new Error(result.error)
-            return result.data
-        },
+        queryFn: () =>
+            browserApi<Deposit[]>("/organisation/deposits", {
+                fallback: "Failed to load organisation activity",
+            }),
     })
 
     if (!ready || loading) return <OrgDashboardSkeleton />
@@ -115,7 +109,7 @@ export function OrganisationDashboard() {
             />
         )
     }
-    if (!user.organisations.length) {
+    if (!user.organisations?.length) {
         return (
             <EmptyState
                 title="This desk is for recycling organisations"
@@ -275,9 +269,24 @@ export function OrganisationDashboard() {
                                                 size="sm"
                                                 variant="primary"
                                                 onClick={async () => {
-                                                    const result = await acceptPickupAction(pickup.id)
-                                                    if (!result.ok) push(result.error, "danger")
-                                                    else void pickups.refetch()
+                                                    try {
+                                                        await browserApi(
+                                                            `/pickups/${pickup.id}/accept`,
+                                                            {
+                                                                method: "POST",
+                                                                body: JSON.stringify({}),
+                                                                fallback: "Failed to accept pickup",
+                                                            }
+                                                        )
+                                                        void pickups.refetch()
+                                                    } catch (error) {
+                                                        push(
+                                                            error instanceof Error
+                                                                ? error.message
+                                                                : "Failed to accept pickup",
+                                                            "danger"
+                                                        )
+                                                    }
                                                 }}
                                             >
                                                 Accept
@@ -288,14 +297,26 @@ export function OrganisationDashboard() {
                                                 size="sm"
                                                 variant="primary"
                                                 onClick={async () => {
-                                                    const result = await completePickupAction(
-                                                        pickup.id
-                                                    )
-                                                    if (!result.ok) push(result.error, "danger")
-                                                    else {
+                                                    try {
+                                                        await browserApi(
+                                                            `/pickups/${pickup.id}/complete`,
+                                                            {
+                                                                method: "POST",
+                                                                body: JSON.stringify({}),
+                                                                fallback:
+                                                                    "Failed to complete pickup",
+                                                            }
+                                                        )
                                                         void pickups.refetch()
                                                         void overview.refetch()
                                                         void points.refetch()
+                                                    } catch (error) {
+                                                        push(
+                                                            error instanceof Error
+                                                                ? error.message
+                                                                : "Failed to complete pickup",
+                                                            "danger"
+                                                        )
                                                     }
                                                 }}
                                             >
