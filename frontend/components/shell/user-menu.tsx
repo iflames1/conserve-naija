@@ -75,7 +75,7 @@ export function UserMenu() {
                     <RiUser3Line />
                     Profile
                 </DropdownMenuItem>
-                {user.organisations.length ? (
+                {user.organisations?.length ? (
                     <DropdownMenuItem onClick={() => router.push("/organisation")}>
                         <RiBuildingLine />
                         Organisation

@@ -2,11 +2,12 @@
 
 import * as React from "react"
 
-import { syncAuthUser } from "@/actions/users"
+import { browserApi } from "@/lib/api/browser"
+import type { AppUser } from "@/lib/api/types"
 import { authClient } from "@/lib/auth/client"
 import { isVerificationDisabled } from "@/lib/auth/flags"
 import { clearAccessTokenCache } from "@/components/ws/app-ws-provider"
-import { useSessionActions } from "@/stores/session"
+import { useSessionActions, useSessionStore } from "@/stores/session"
 
 export function AuthSync() {
     const { data: session, isPending } = authClient.useSession()
@@ -28,19 +29,23 @@ export function AuthSync() {
                 clearAccessTokenCache()
                 return
             }
-            setLoading(true)
+            if (!useSessionStore.getState().user) setLoading(true)
             try {
-                const synced = await syncAuthUser({
-                    id,
-                    email,
-                    name,
-                    image,
-                    emailVerified: emailVerified || isVerificationDisabled(),
+                const synced = await browserApi<AppUser>("/users", {
+                    method: "POST",
+                    fallback: "Failed to sync account",
+                    body: JSON.stringify({
+                        id,
+                        email,
+                        displayName: name,
+                        avatarUrl: image,
+                        emailVerified: emailVerified || isVerificationDisabled(),
+                    }),
                 })
                 if (!cancelled) setUser(synced)
             } catch (error) {
                 console.error("Failed to sync app user", error)
-                if (!cancelled) setUser(null)
+                if (!cancelled && !useSessionStore.getState().user) setUser(null)
             } finally {
                 if (!cancelled) setLoading(false)
             }

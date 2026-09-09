@@ -2,8 +2,8 @@
 
 import * as React from "react"
 
-import { addOrgMemberAction } from "@/actions/organisation"
-import { getMeAction } from "@/actions/users"
+import { browserApi } from "@/lib/api/browser"
+import type { AppUser } from "@/lib/api/types"
 import { PageContainer } from "@/components/common/page-container"
 import { Button, Input, Label } from "@/components/ui"
 import { useNotificationActions } from "@/stores/notifications"
@@ -27,16 +27,28 @@ export default function AdminPage() {
                 className="mt-8 space-y-4"
                 onSubmit={async (event) => {
                     event.preventDefault()
-                    const result = await addOrgMemberAction({
-                        organisationId: RECYCLE_LAGOS,
-                        email,
-                    })
-                    if (!result.ok) push(result.error, "danger")
-                    else {
+                    try {
+                        await browserApi("/admin/members", {
+                            method: "POST",
+                            fallback: "Couldn't add that email",
+                            body: JSON.stringify({
+                                organisationId: RECYCLE_LAGOS,
+                                email,
+                            }),
+                        })
                         push(`${email} can open the organisation desk now.`)
                         setEmail("")
-                        const me = await getMeAction()
-                        if (me.ok) setUser(me.data)
+                        const me = await browserApi<AppUser>("/me", {
+                            fallback: "Failed to load profile",
+                        })
+                        setUser(me)
+                    } catch (error) {
+                        push(
+                            error instanceof Error
+                                ? error.message
+                                : "Couldn't add that email",
+                            "danger"
+                        )
                     }
                 }}
             >

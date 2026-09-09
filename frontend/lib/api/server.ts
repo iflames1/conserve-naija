@@ -22,6 +22,15 @@ function getApiBaseUrl() {
     return apiUrl()
 }
 
+const API_TIMEOUT_MS = 20_000
+
+function apiRequest(url: string, init?: RequestInit) {
+    return fetch(url, {
+        ...init,
+        signal: init?.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
+    })
+}
+
 async function authHeaders(): Promise<HeadersInit> {
     const { getAccessToken } = await import("@/lib/auth/access-token")
     const token = await getAccessToken()
@@ -49,7 +58,7 @@ export async function upsertUser(payload: {
     avatarUrl?: string | null
     emailVerified?: boolean | null
 }): Promise<AppUser> {
-    const response = await fetch(`${getApiBaseUrl()}/users`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/users`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify(payload),
@@ -58,7 +67,7 @@ export async function upsertUser(payload: {
 }
 
 export async function getMe(): Promise<AppUser> {
-    const response = await fetch(`${getApiBaseUrl()}/me`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/me`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -66,21 +75,21 @@ export async function getMe(): Promise<AppUser> {
 }
 
 export async function listCollectionPoints(): Promise<CollectionPoint[]> {
-    const response = await fetch(`${getApiBaseUrl()}/collection-points`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/collection-points`, {
         cache: "no-store",
     })
     return parse(response, "Failed to load collection points")
 }
 
 export async function getCollectionPoint(id: string): Promise<CollectionPoint> {
-    const response = await fetch(`${getApiBaseUrl()}/collection-points/${id}`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/collection-points/${id}`, {
         cache: "no-store",
     })
     return parse(response, "Failed to load collection point")
 }
 
 export async function startRecyclingSession(): Promise<RecyclingSession> {
-    const response = await fetch(`${getApiBaseUrl()}/recycling-sessions`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/recycling-sessions`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({}),
@@ -89,7 +98,7 @@ export async function startRecyclingSession(): Promise<RecyclingSession> {
 }
 
 export async function getActiveRecyclingSession(): Promise<RecyclingSession | null> {
-    const response = await fetch(`${getApiBaseUrl()}/recycling-sessions/active`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/recycling-sessions/active`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -101,7 +110,7 @@ export async function getActiveRecyclingSession(): Promise<RecyclingSession | nu
 }
 
 export async function getRecyclingSession(id: string): Promise<RecyclingSession> {
-    const response = await fetch(`${getApiBaseUrl()}/recycling-sessions/${id}`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/recycling-sessions/${id}`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -109,7 +118,7 @@ export async function getRecyclingSession(id: string): Promise<RecyclingSession>
 }
 
 export async function cancelRecyclingSession(id: string): Promise<RecyclingSession> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/recycling-sessions/${id}/cancel`,
         {
             method: "POST",
@@ -120,7 +129,7 @@ export async function cancelRecyclingSession(id: string): Promise<RecyclingSessi
 }
 
 export async function getDeposit(id: string): Promise<Deposit> {
-    const response = await fetch(`${getApiBaseUrl()}/deposits/${id}`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/deposits/${id}`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -128,7 +137,7 @@ export async function getDeposit(id: string): Promise<Deposit> {
 }
 
 export async function listMyDeposits(): Promise<Deposit[]> {
-    const response = await fetch(`${getApiBaseUrl()}/me/deposits`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/me/deposits`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -136,7 +145,7 @@ export async function listMyDeposits(): Promise<Deposit[]> {
 }
 
 export async function getMyRewards(): Promise<RewardsSummary> {
-    const response = await fetch(`${getApiBaseUrl()}/me/rewards`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/me/rewards`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -144,7 +153,7 @@ export async function getMyRewards(): Promise<RewardsSummary> {
 }
 
 export async function listMyTransactions(): Promise<LedgerEntry[]> {
-    const response = await fetch(`${getApiBaseUrl()}/me/rewards/transactions`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/me/rewards/transactions`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -152,7 +161,7 @@ export async function listMyTransactions(): Promise<LedgerEntry[]> {
 }
 
 export async function getOrganisationOverview(): Promise<OrganisationOverview> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -160,7 +169,7 @@ export async function getOrganisationOverview(): Promise<OrganisationOverview> {
 }
 
 export async function listOrgCollectionPoints(): Promise<CollectionPoint[]> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/organisation/collection-points`,
         { headers: await authHeaders(), cache: "no-store" }
     )
@@ -168,7 +177,7 @@ export async function listOrgCollectionPoints(): Promise<CollectionPoint[]> {
 }
 
 export async function listOrgDevices(): Promise<Device[]> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/devices`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/devices`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -180,7 +189,7 @@ export async function registerDevice(input: {
     deviceType?: string
     collectionPointId?: string
 }): Promise<{ device: Device; apiKey: string }> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/devices`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/devices`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify(input),
@@ -192,7 +201,7 @@ export async function associateDevice(input: {
     deviceId: string
     collectionPointId: string
 }): Promise<void> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/organisation/devices/associate`,
         {
             method: "POST",
@@ -204,7 +213,7 @@ export async function associateDevice(input: {
 }
 
 export async function listOrgInventory() {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/inventory`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/inventory`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -215,7 +224,7 @@ export async function listOrgInventory() {
 }
 
 export async function listOrgPickups(): Promise<Pickup[]> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/pickups`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/pickups`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -223,7 +232,7 @@ export async function listOrgPickups(): Promise<Pickup[]> {
 }
 
 export async function listOrgDeposits(): Promise<Deposit[]> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/deposits`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/deposits`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -238,7 +247,7 @@ export async function createCollectionPoint(input: {
     longitude?: number
     thresholdKg?: number
 }): Promise<CollectionPoint> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/organisation/collection-points`,
         {
             method: "POST",
@@ -250,7 +259,7 @@ export async function createCollectionPoint(input: {
 }
 
 export async function deactivateDevice(id: string): Promise<void> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/organisation/devices/${id}/deactivate`,
         {
             method: "POST",
@@ -261,7 +270,7 @@ export async function deactivateDevice(id: string): Promise<void> {
 }
 
 export async function listOrgMaterials(): Promise<Material[]> {
-    const response = await fetch(`${getApiBaseUrl()}/organisation/materials`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/organisation/materials`, {
         headers: await authHeaders(),
         cache: "no-store",
     })
@@ -272,7 +281,7 @@ export async function setMaterialPrice(input: {
     materialId: string
     pricePerKgNaira: number
 }): Promise<void> {
-    const response = await fetch(
+    const response = await apiRequest(
         `${getApiBaseUrl()}/organisation/material-prices`,
         {
             method: "POST",
@@ -284,7 +293,7 @@ export async function setMaterialPrice(input: {
 }
 
 export async function acceptPickup(id: string): Promise<Pickup> {
-    const response = await fetch(`${getApiBaseUrl()}/pickups/${id}/accept`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/pickups/${id}/accept`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({}),
@@ -293,7 +302,7 @@ export async function acceptPickup(id: string): Promise<Pickup> {
 }
 
 export async function completePickup(id: string): Promise<Pickup> {
-    const response = await fetch(`${getApiBaseUrl()}/pickups/${id}/complete`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/pickups/${id}/complete`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify({}),
@@ -305,7 +314,7 @@ export async function addOrgMember(input: {
     organisationId: string
     email: string
 }): Promise<void> {
-    const response = await fetch(`${getApiBaseUrl()}/admin/members`, {
+    const response = await apiRequest(`${getApiBaseUrl()}/admin/members`, {
         method: "POST",
         headers: await authHeaders(),
         body: JSON.stringify(input),
