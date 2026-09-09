@@ -1,0 +1,14 @@
+# cn-server. Railway service can use the repo root (this file) or set
+# the service root to `backend/` (then backend/railway.toml applies).
+#
+# Postgres is a second service. Set THAT service's root to `infra/postgres`.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 60
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 5
