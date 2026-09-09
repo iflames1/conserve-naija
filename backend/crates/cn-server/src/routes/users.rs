@@ -8,7 +8,8 @@ use crate::auth::AuthUser;
 use crate::data::deposits::PgDepositRepo;
 use crate::data::users::{PgUserRepo, UpsertUserInput};
 use crate::error::{AppError, AppResult};
-use crate::routes::access::load_memberships;
+use crate::data::organisations::PgOrganisationRepo;
+use crate::routes::access::{is_platform_admin, load_memberships};
 use crate::routes::dto::{UserResponse, ledger_dto};
 use crate::services::jwt::parse_jwt_sub;
 use crate::state::AppState;
@@ -118,7 +119,7 @@ async fn json_user(
     user: cn_domain::User,
 ) -> AppResult<Json<UserResponse>> {
     let repo = PgUserRepo::new(state.db.clone());
-    let orgs = load_memberships(state, auth)
+    let mut orgs: Vec<crate::routes::dto::OrgMembershipResponse> = load_memberships(state, auth)
         .await?
         .into_iter()
         .map(|m| crate::routes::dto::OrgMembershipResponse {
@@ -128,6 +129,21 @@ async fn json_user(
             member_role: m.member_role,
         })
         .collect();
+    if orgs.is_empty() && is_platform_admin(state, auth).await? {
+        if let Some(org) = PgOrganisationRepo::new(state.db.clone())
+            .list()
+            .await?
+            .into_iter()
+            .next()
+        {
+            orgs.push(crate::routes::dto::OrgMembershipResponse {
+                id: org.id.to_string(),
+                name: org.name,
+                slug: org.slug,
+                member_role: "admin".into(),
+            });
+        }
+    }
     let (deposit_count, recycled_grams) = repo.recycling_stats(user.id).await?;
     Ok(Json(UserResponse {
         id: user.id.to_string(),

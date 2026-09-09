@@ -353,6 +353,81 @@ async fn organisation_can_register_machine_and_point() {
     assert_eq!(found["status"], "disabled");
 }
 
+#[tokio::test]
+async fn public_list_includes_yaba() {
+    let ctx = TestCtx::boot().await;
+    let points = ctx.get("/collection-points", None).await;
+    assert!(
+        points
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|point| point["slug"] == "yaba" && point["status"] == "active"),
+        "{points}"
+    );
+}
+
+#[tokio::test]
+async fn admin_can_add_existing_and_invite_missing_email() {
+    let ctx = TestCtx::boot().await;
+    let admin = Uuid::now_v7();
+    ctx.upsert_user(admin, &format!("admin-{admin}@conserve.local"), "Admin")
+        .await;
+    PgUserRepo::new(ctx.db.clone())
+        .grant_role(UserId::from(admin), cn_domain::UserRole::Admin)
+        .await
+        .unwrap();
+
+    let existing = Uuid::now_v7();
+    let existing_email = format!("onboarded-{existing}@test.local");
+    ctx.upsert_user(existing, &existing_email, "Onboarded")
+        .await;
+    let added = ctx
+        .post(
+            "/admin/members",
+            Some(admin),
+            json!({
+                "organisationId": ORG,
+                "email": existing_email
+            }),
+        )
+        .await;
+    assert_eq!(added["pending"], false);
+    let me = ctx.get("/me", Some(existing)).await;
+    assert!(
+        me["organisations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|org| org["slug"] == "recycle-lagos")
+    );
+
+    let invited_email = format!("isaac-{admin}@test.local");
+    let invited = ctx
+        .post(
+            "/admin/members",
+            Some(admin),
+            json!({
+                "organisationId": ORG,
+                "email": invited_email
+            }),
+        )
+        .await;
+    assert_eq!(invited["pending"], true);
+
+    let isaac = Uuid::now_v7();
+    ctx.upsert_user(isaac, &invited_email, "Isaac").await;
+    let isaac_me = ctx.get("/me", Some(isaac)).await;
+    assert!(
+        isaac_me["organisations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|org| org["slug"] == "recycle-lagos"),
+        "{isaac_me}"
+    );
+}
+
 struct TestCtx {
     client: reqwest::Client,
     base: String,
@@ -383,6 +458,17 @@ impl TestCtx {
     }
 
     async fn reset_lekki(&self) {
+        sqlx::query("UPDATE collection_points SET status = 'active' WHERE id = $1")
+            .bind(Uuid::parse_str(LEKKI).unwrap())
+            .execute(&self.db)
+            .await
+            .unwrap();
+        sqlx::query(
+            "UPDATE devices SET status = 'active' WHERE id = '00000000-0000-7000-8000-000000000031'",
+        )
+        .execute(&self.db)
+        .await
+        .unwrap();
         sqlx::query(
             "UPDATE collection_point_inventory SET weight_grams = 0 WHERE collection_point_id = $1",
         )

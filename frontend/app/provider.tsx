@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-query"
 import * as React from "react"
 
+import { ApiWarmup } from "@/components/api-warmup"
 import { AuthSync } from "@/components/auth/auth-sync"
 import { ToastHost } from "@/components/notifications/toast-host"
 import { AppWsProvider } from "@/components/ws/app-ws-provider"
@@ -19,7 +20,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
                     queries: {
                         staleTime: 30_000,
                         gcTime: 5 * 60_000,
-                        refetchOnWindowFocus: false,
+                        refetchOnWindowFocus: true,
                         placeholderData: keepPreviousData,
                     },
                 },
@@ -28,6 +29,7 @@ export function Provider({ children }: { children: React.ReactNode }) {
 
     return (
         <QueryClientProvider client={queryClient}>
+            <ApiWarmup />
             <AuthSync />
             <AppWsProvider />
             <ToastHost />

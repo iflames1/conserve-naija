@@ -1,9 +1,11 @@
 "use client"
 
+import * as React from "react"
 import { useQuery } from "@tanstack/react-query"
 
 import { browserApi } from "@/lib/api/browser"
 import type {
+    AppUser,
     CollectionPoint,
     Deposit,
     Device,
@@ -17,13 +19,24 @@ import {
     Card,
     CardContent,
     EmptyState,
+    Input,
     Progress,
     Stat,
 } from "@/components/ui"
 import { OrgDashboardSkeleton } from "@/components/common/page-skeleton"
 import { formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
+import { usePendingAction, usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
-import { useSessionLoading, useSessionUser } from "@/stores/session"
+import { useSessionActions, useSessionLoading, useSessionUser } from "@/stores/session"
+
+function isOrgForbidden(error: unknown) {
+    const message = error instanceof Error ? error.message : ""
+    return (
+        message.includes("forbidden") ||
+        message.includes("join an organisation") ||
+        message.includes("not a member")
+    )
+}
 
 function pickupBadge(status: string) {
     if (status === "ready") return "warning" as const
@@ -47,8 +60,12 @@ export function OrganisationDashboard() {
     const user = useSessionUser()
     const loading = useSessionLoading()
     const { push } = useNotificationActions()
+    const { setUser } = useSessionActions()
+    const addMember = usePendingAction()
+    const pickupAction = usePendingKey()
+    const [inviteEmail, setInviteEmail] = React.useState("")
 
-    const enabled = Boolean(user?.organisations?.length)
+    const enabled = Boolean(user)
     const overview = useQuery({
         queryKey: ["org-overview", user?.id],
         enabled,
@@ -103,7 +120,37 @@ export function OrganisationDashboard() {
             />
         )
     }
-    if (!user.organisations?.length) {
+    if (overview.isError && isOrgForbidden(overview.error)) {
+        return (
+            <EmptyState
+                title="This desk is for recycling organisations"
+                description="If you operate Conserve machines, ask an admin to add your email. Otherwise get a code from Home."
+                action={
+                    <ButtonLink href="/" variant="primary">
+                        Go home
+                    </ButtonLink>
+                }
+            />
+        )
+    }
+    if (overview.isError) {
+        return (
+            <EmptyState
+                title="Couldn't reach the desk"
+                description="The organisation pages talk to the site. Give it a moment, then try again."
+                action={
+                    <Button
+                        variant="primary"
+                        disabled={overview.isFetching}
+                        onClick={() => void overview.refetch()}
+                    >
+                        {overview.isFetching ? "Trying…" : "Try again"}
+                    </Button>
+                }
+            />
+        )
+    }
+    if (!user.organisations?.length && !overview.isPending && !overview.data) {
         return (
             <EmptyState
                 title="This desk is for recycling organisations"
@@ -117,6 +164,10 @@ export function OrganisationDashboard() {
         )
     }
 
+    if (overview.isPending && !overview.data) {
+        return <OrgDashboardSkeleton />
+    }
+
     const stats = overview.data
     const activePickups = (pickups.data ?? []).filter(
         (pickup) => pickup.status === "ready" || pickup.status === "accepted"
@@ -126,9 +177,70 @@ export function OrganisationDashboard() {
     return (
         <div className="space-y-10">
             <div>
-                <p className="text-sm text-primary">{user.organisations[0]?.name}</p>
+                <p className="text-sm text-primary">
+                    {user.organisations[0]?.name ?? "Recycle Lagos"}
+                </p>
                 <h1 className="font-display text-4xl">Network</h1>
             </div>
+
+            <section className="rounded-2xl border border-border/70 p-5 surface-raised">
+                <h2 className="text-2xl font-semibold tracking-tight">Teammates</h2>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    Put their email in. Recycle Lagos will be waiting.
+                </p>
+                <form
+                    className="mt-4 flex flex-wrap gap-2"
+                    onSubmit={(event) => {
+                        event.preventDefault()
+                        const submitted = inviteEmail.trim()
+                        void addMember.run(async () => {
+                            try {
+                                const result = await browserApi<{
+                                    ok: boolean
+                                    pending?: boolean
+                                }>("/organisation/members", {
+                                    method: "POST",
+                                    fallback: "Couldn't add that email",
+                                    body: JSON.stringify({ email: submitted }),
+                                })
+                                push(
+                                    result.pending
+                                        ? "Recycle Lagos will be there when they sign in."
+                                        : `${submitted} can open the desk now.`
+                                )
+                                setInviteEmail("")
+                                const me = await browserApi<AppUser>("/me", {
+                                    fallback: "Failed to load profile",
+                                })
+                                setUser(me)
+                            } catch (error) {
+                                push(
+                                    error instanceof Error
+                                        ? error.message
+                                        : "Couldn't add that email",
+                                    "danger"
+                                )
+                            }
+                        })
+                    }}
+                >
+                    <Input
+                        type="email"
+                        value={inviteEmail}
+                        disabled={addMember.pending}
+                        placeholder="teammate@email.com"
+                        onChange={(event) => setInviteEmail(event.target.value)}
+                        className="max-w-sm"
+                    />
+                    <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={addMember.pending || !inviteEmail.trim()}
+                    >
+                        {addMember.pending ? "Adding…" : "Add them"}
+                    </Button>
+                </form>
+            </section>
 
             <section className="grid grid-cols-2 gap-5 rounded-2xl border border-border/70 p-5 surface-raised lg:grid-cols-4">
                 <Stat
@@ -262,59 +374,84 @@ export function OrganisationDashboard() {
                                             <Button
                                                 size="sm"
                                                 variant="primary"
-                                                onClick={async () => {
-                                                    try {
-                                                        await browserApi(
-                                                            `/pickups/${pickup.id}/accept`,
-                                                            {
-                                                                method: "POST",
-                                                                body: JSON.stringify({}),
-                                                                fallback: "Failed to accept pickup",
+                                                disabled={
+                                                    pickupAction.pendingKey === pickup.id
+                                                }
+                                                onClick={() => {
+                                                    void pickupAction.run(
+                                                        pickup.id,
+                                                        async () => {
+                                                            try {
+                                                                await browserApi(
+                                                                    `/pickups/${pickup.id}/accept`,
+                                                                    {
+                                                                        method: "POST",
+                                                                        body: JSON.stringify(
+                                                                            {}
+                                                                        ),
+                                                                        fallback:
+                                                                            "Failed to accept pickup",
+                                                                    }
+                                                                )
+                                                                void pickups.refetch()
+                                                            } catch (error) {
+                                                                push(
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to accept pickup",
+                                                                    "danger"
+                                                                )
                                                             }
-                                                        )
-                                                        void pickups.refetch()
-                                                    } catch (error) {
-                                                        push(
-                                                            error instanceof Error
-                                                                ? error.message
-                                                                : "Failed to accept pickup",
-                                                            "danger"
-                                                        )
-                                                    }
+                                                        }
+                                                    )
                                                 }}
                                             >
-                                                Accept
+                                                {pickupAction.pendingKey === pickup.id
+                                                    ? "Accepting…"
+                                                    : "Accept"}
                                             </Button>
                                         ) : null}
                                         {pickup.status === "accepted" ? (
                                             <Button
                                                 size="sm"
                                                 variant="primary"
-                                                onClick={async () => {
-                                                    try {
-                                                        await browserApi(
-                                                            `/pickups/${pickup.id}/complete`,
-                                                            {
-                                                                method: "POST",
-                                                                body: JSON.stringify({}),
-                                                                fallback:
-                                                                    "Failed to complete pickup",
+                                                disabled={
+                                                    pickupAction.pendingKey === pickup.id
+                                                }
+                                                onClick={() => {
+                                                    void pickupAction.run(
+                                                        pickup.id,
+                                                        async () => {
+                                                            try {
+                                                                await browserApi(
+                                                                    `/pickups/${pickup.id}/complete`,
+                                                                    {
+                                                                        method: "POST",
+                                                                        body: JSON.stringify(
+                                                                            {}
+                                                                        ),
+                                                                        fallback:
+                                                                            "Failed to complete pickup",
+                                                                    }
+                                                                )
+                                                                void pickups.refetch()
+                                                                void overview.refetch()
+                                                                void points.refetch()
+                                                            } catch (error) {
+                                                                push(
+                                                                    error instanceof Error
+                                                                        ? error.message
+                                                                        : "Failed to complete pickup",
+                                                                    "danger"
+                                                                )
                                                             }
-                                                        )
-                                                        void pickups.refetch()
-                                                        void overview.refetch()
-                                                        void points.refetch()
-                                                    } catch (error) {
-                                                        push(
-                                                            error instanceof Error
-                                                                ? error.message
-                                                                : "Failed to complete pickup",
-                                                            "danger"
-                                                        )
-                                                    }
+                                                        }
+                                                    )
                                                 }}
                                             >
-                                                Mark collected
+                                                {pickupAction.pendingKey === pickup.id
+                                                    ? "Saving…"
+                                                    : "Mark collected"}
                                             </Button>
                                         ) : null}
                                     </div>

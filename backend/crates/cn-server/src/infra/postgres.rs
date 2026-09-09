@@ -1,5 +1,7 @@
 use std::path::{Path, PathBuf};
 
+use std::time::Duration;
+
 use anyhow::{Context, Result};
 use sqlx::PgPool;
 use sqlx::postgres::PgPoolOptions;
@@ -19,12 +21,16 @@ fn migrations_dir() -> PathBuf {
 
 /// Open a Postgres pool, run migrations, and verify connectivity. Required for boot.
 pub async fn connect(database_url: &str) -> Result<PgPool> {
-    let pool = PgPoolOptions::new()
-        .max_connections(10)
-        .acquire_timeout(std::time::Duration::from_secs(15))
-        .connect(database_url)
-        .await
-        .context("connect to postgres")?;
+    let pool = tokio::time::timeout(
+        Duration::from_secs(10),
+        PgPoolOptions::new()
+            .max_connections(10)
+            .acquire_timeout(Duration::from_secs(15))
+            .connect(database_url),
+    )
+    .await
+    .context("postgres connect timed out")?
+    .context("connect to postgres")?;
 
     sqlx::query("SELECT 1")
         .execute(&pool)

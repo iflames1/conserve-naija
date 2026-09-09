@@ -22,6 +22,7 @@ import {
 } from "@/components/ui"
 import { OrgFormPageSkeleton } from "@/components/common/page-skeleton"
 import { formatRelativeTime } from "@/lib/utils"
+import { usePendingAction, usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionLoading, useSessionUser } from "@/stores/session"
 
@@ -33,6 +34,9 @@ export default function MachinesPage() {
     const [collectionPointId, setCollectionPointId] = React.useState("")
     const [apiKey, setApiKey] = React.useState<string | null>(null)
     const [pointIds, setPointIds] = React.useState<Record<string, string>>({})
+    const register = usePendingAction()
+    const attach = usePendingKey()
+    const deactivate = usePendingKey()
 
     const devices = useQuery({
         queryKey: ["org-devices", user?.id],
@@ -76,32 +80,34 @@ export default function MachinesPage() {
                 <CardContent className="p-5">
                     <form
                         className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
-                        onSubmit={async (event) => {
+                        onSubmit={(event) => {
                             event.preventDefault()
-                            try {
-                                const registered = await browserApi<{
-                                    device: Device
-                                    apiKey: string
-                                }>("/organisation/devices", {
-                                    method: "POST",
-                                    body: JSON.stringify({
-                                        externalId,
-                                        collectionPointId:
-                                            collectionPointId || undefined,
-                                    }),
-                                    fallback: "Failed to register device",
-                                })
-                                setApiKey(registered.apiKey)
-                                setExternalId("")
-                                void devices.refetch()
-                            } catch (error) {
-                                push(
-                                    error instanceof Error
-                                        ? error.message
-                                        : "Failed to register device",
-                                    "danger"
-                                )
-                            }
+                            void register.run(async () => {
+                                try {
+                                    const registered = await browserApi<{
+                                        device: Device
+                                        apiKey: string
+                                    }>("/organisation/devices", {
+                                        method: "POST",
+                                        body: JSON.stringify({
+                                            externalId,
+                                            collectionPointId:
+                                                collectionPointId || undefined,
+                                        }),
+                                        fallback: "Failed to register device",
+                                    })
+                                    setApiKey(registered.apiKey)
+                                    setExternalId("")
+                                    void devices.refetch()
+                                } catch (error) {
+                                    push(
+                                        error instanceof Error
+                                            ? error.message
+                                            : "Failed to register device",
+                                        "danger"
+                                    )
+                                }
+                            })
                         }}
                     >
                         <div className="grid gap-2">
@@ -139,8 +145,13 @@ export default function MachinesPage() {
                                 </SelectContent>
                             </Select>
                         </div>
-                        <Button className="self-end" type="submit" variant="primary">
-                            Register machine
+                        <Button
+                            className="self-end"
+                            type="submit"
+                            variant="primary"
+                            disabled={register.pending || !externalId.trim()}
+                        >
+                            {register.pending ? "Registering…" : "Register machine"}
                         </Button>
                     </form>
                 </CardContent>
@@ -179,33 +190,35 @@ export default function MachinesPage() {
                                 ) : null}
                                 <form
                                     className="flex gap-2"
-                                    onSubmit={async (event) => {
+                                    onSubmit={(event) => {
                                         event.preventDefault()
                                         const selectedPointId = pointIds[device.id]
                                         if (!selectedPointId) return
-                                        try {
-                                            await browserApi(
-                                                "/organisation/devices/associate",
-                                                {
-                                                    method: "POST",
-                                                    body: JSON.stringify({
-                                                        deviceId: device.id,
-                                                        collectionPointId:
-                                                            selectedPointId,
-                                                    }),
-                                                    fallback:
-                                                        "Failed to associate device",
-                                                }
-                                            )
-                                            void devices.refetch()
-                                        } catch (error) {
-                                            push(
-                                                error instanceof Error
-                                                    ? error.message
-                                                    : "Failed to associate device",
-                                                "danger"
-                                            )
-                                        }
+                                        void attach.run(device.id, async () => {
+                                            try {
+                                                await browserApi(
+                                                    "/organisation/devices/associate",
+                                                    {
+                                                        method: "POST",
+                                                        body: JSON.stringify({
+                                                            deviceId: device.id,
+                                                            collectionPointId:
+                                                                selectedPointId,
+                                                        }),
+                                                        fallback:
+                                                            "Failed to associate device",
+                                                    }
+                                                )
+                                                void devices.refetch()
+                                            } catch (error) {
+                                                push(
+                                                    error instanceof Error
+                                                        ? error.message
+                                                        : "Failed to associate device",
+                                                    "danger"
+                                                )
+                                            }
+                                        })
                                     }}
                                 >
                                     <Select
@@ -234,36 +247,47 @@ export default function MachinesPage() {
                                             ))}
                                         </SelectContent>
                                     </Select>
-                                    <Button size="sm" type="submit">
-                                        Attach
+                                    <Button
+                                        size="sm"
+                                        type="submit"
+                                        disabled={attach.pendingKey === device.id}
+                                    >
+                                        {attach.pendingKey === device.id
+                                            ? "Attaching…"
+                                            : "Attach"}
                                     </Button>
                                 </form>
                                 {device.status === "active" ? (
                                     <Button
                                         size="sm"
                                         variant="ghost"
-                                        onClick={async () => {
-                                            try {
-                                                await browserApi(
-                                                    `/organisation/devices/${device.id}/deactivate`,
-                                                    {
-                                                        method: "POST",
-                                                        fallback:
-                                                            "Failed to deactivate machine",
-                                                    }
-                                                )
-                                                void devices.refetch()
-                                            } catch (error) {
-                                                push(
-                                                    error instanceof Error
-                                                        ? error.message
-                                                        : "Failed to deactivate machine",
-                                                    "danger"
-                                                )
-                                            }
+                                        disabled={deactivate.pendingKey === device.id}
+                                        onClick={() => {
+                                            void deactivate.run(device.id, async () => {
+                                                try {
+                                                    await browserApi(
+                                                        `/organisation/devices/${device.id}/deactivate`,
+                                                        {
+                                                            method: "POST",
+                                                            fallback:
+                                                                "Failed to deactivate machine",
+                                                        }
+                                                    )
+                                                    void devices.refetch()
+                                                } catch (error) {
+                                                    push(
+                                                        error instanceof Error
+                                                            ? error.message
+                                                            : "Failed to deactivate machine",
+                                                        "danger"
+                                                    )
+                                                }
+                                            })
                                         }}
                                     >
-                                        Deactivate
+                                        {deactivate.pendingKey === device.id
+                                            ? "Working…"
+                                            : "Deactivate"}
                                     </Button>
                                 ) : null}
                             </div>

@@ -18,7 +18,6 @@ pub async fn is_platform_admin(state: &AppState, user: &AuthUser) -> AppResult<b
         .email
         .as_ref()
         .is_some_and(|email| state.config.admin_emails.iter().any(|a| a == email))
-        && (user.email_verified || state.config.is_dev)
     {
         return Ok(true);
     }

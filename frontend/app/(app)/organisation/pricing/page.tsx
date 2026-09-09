@@ -7,6 +7,7 @@ import { browserApi } from "@/lib/api/browser"
 import type { Material } from "@/lib/api/types"
 import { Button, Card, CardContent, Input } from "@/components/ui"
 import { formatNaira } from "@/lib/utils"
+import { usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionUser } from "@/stores/session"
 
@@ -14,6 +15,7 @@ export default function PricingPage() {
     const user = useSessionUser()
     const { push } = useNotificationActions()
     const [drafts, setDrafts] = React.useState<Record<string, string>>({})
+    const save = usePendingKey()
 
     const materials = useQuery({
         queryKey: ["org-materials", user?.id],
@@ -37,36 +39,38 @@ export default function PricingPage() {
                         <CardContent className="p-0">
                             <form
                                 className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
-                                onSubmit={async (event) => {
+                                onSubmit={(event) => {
                                     event.preventDefault()
                                     const raw =
                                         drafts[material.id] ??
                                         String(material.pricePerKgNaira ?? "")
                                     const price = Number(raw)
-                                    try {
-                                        await browserApi(
-                                            "/organisation/material-prices",
-                                            {
-                                                method: "POST",
-                                                body: JSON.stringify({
-                                                    materialId: material.id,
-                                                    pricePerKgNaira: price,
-                                                }),
-                                                fallback: "Failed to update price",
-                                            }
-                                        )
-                                        push(
-                                            `${material.name} is now ${formatNaira(price)} / kg`
-                                        )
-                                        void materials.refetch()
-                                    } catch (error) {
-                                        push(
-                                            error instanceof Error
-                                                ? error.message
-                                                : "Failed to update price",
-                                            "danger"
-                                        )
-                                    }
+                                    void save.run(material.id, async () => {
+                                        try {
+                                            await browserApi(
+                                                "/organisation/material-prices",
+                                                {
+                                                    method: "POST",
+                                                    body: JSON.stringify({
+                                                        materialId: material.id,
+                                                        pricePerKgNaira: price,
+                                                    }),
+                                                    fallback: "Failed to update price",
+                                                }
+                                            )
+                                            push(
+                                                `${material.name} is now ${formatNaira(price)} / kg`
+                                            )
+                                            void materials.refetch()
+                                        } catch (error) {
+                                            push(
+                                                error instanceof Error
+                                                    ? error.message
+                                                    : "Failed to update price",
+                                                "danger"
+                                            )
+                                        }
+                                    })
                                 }}
                             >
                                 <div>
@@ -87,8 +91,13 @@ export default function PricingPage() {
                                             }))
                                         }
                                     />
-                                    <Button size="sm" type="submit" variant="primary">
-                                        Save
+                                    <Button
+                                        size="sm"
+                                        type="submit"
+                                        variant="primary"
+                                        disabled={save.pendingKey === material.id}
+                                    >
+                                        {save.pendingKey === material.id ? "Saving…" : "Save"}
                                     </Button>
                                 </div>
                             </form>

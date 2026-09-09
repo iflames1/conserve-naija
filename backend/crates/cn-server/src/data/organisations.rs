@@ -116,12 +116,62 @@ impl PgOrganisationRepo {
         Ok(found)
     }
 
+    pub async fn invite_email(
+        &self,
+        organisation_id: OrganisationId,
+        email: &str,
+        member_role: &str,
+    ) -> AppResult<()> {
+        let role = normalize_member_role(member_role)?;
+        sqlx::query(
+            r#"
+            INSERT INTO organisation_invitations (organisation_id, email, member_role)
+            VALUES ($1, $2, $3)
+            ON CONFLICT (organisation_id, email) DO UPDATE SET member_role = EXCLUDED.member_role
+            "#,
+        )
+        .bind(organisation_id.as_uuid())
+        .bind(email)
+        .bind(role)
+        .execute(&self.pool)
+        .await
+        .map_err(|err| AppError::Internal(err.into()))?;
+        Ok(())
+    }
+
+    pub async fn apply_invitations(&self, user_id: UserId, email: &str) -> AppResult<usize> {
+        let inserted = sqlx::query(
+            r#"
+            INSERT INTO organisation_members (organisation_id, user_id, member_role)
+            SELECT organisation_id, $1, member_role
+            FROM organisation_invitations
+            WHERE email = $2
+            ON CONFLICT (organisation_id, user_id) DO UPDATE
+                SET member_role = EXCLUDED.member_role
+            "#,
+        )
+        .bind(user_id.as_uuid())
+        .bind(email)
+        .execute(&self.pool)
+        .await
+        .map_err(|err| AppError::Internal(err.into()))?;
+
+        sqlx::query("DELETE FROM organisation_invitations WHERE email = $1")
+            .bind(email)
+            .execute(&self.pool)
+            .await
+            .map_err(|err| AppError::Internal(err.into()))?;
+
+        Ok(inserted.rows_affected() as usize)
+    }
+
     pub async fn add_member(
         &self,
         organisation_id: OrganisationId,
         user_id: UserId,
         member_role: &str,
     ) -> AppResult<()> {
+        let role = normalize_member_role(member_role)?;
         sqlx::query(
             r#"
             INSERT INTO organisation_members (organisation_id, user_id, member_role)
@@ -131,11 +181,19 @@ impl PgOrganisationRepo {
         )
         .bind(organisation_id.as_uuid())
         .bind(user_id.as_uuid())
-        .bind(member_role)
+        .bind(role)
         .execute(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
         Ok(())
+    }
+}
+
+fn normalize_member_role(role: &str) -> AppResult<&'static str> {
+    match role.trim().to_ascii_lowercase().as_str() {
+        "admin" => Ok("admin"),
+        "member" | "" => Ok("member"),
+        _ => Err(AppError::BadRequest("member role must be member or admin".into())),
     }
 }
 

@@ -204,7 +204,7 @@ export function MissionPanel() {
                             setBusy(false)
                         }}
                     >
-                        Later
+                        {busy ? "Stopping…" : "Later"}
                     </Button>
                 ) : (
                     <Button
@@ -233,7 +233,7 @@ export function MissionPanel() {
                             setBusy(false)
                         }}
                     >
-                        Get another code
+                        {busy ? "Getting a code…" : "Get another code"}
                     </Button>
                 )}
                 {session.status === "completed" ? (

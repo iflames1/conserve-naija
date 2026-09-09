@@ -136,7 +136,7 @@ export function CitizenHome() {
                             setStarting(false)
                         }}
                     >
-                        {starting ? "Getting it…" : "Get a code"}
+                        {starting ? "Getting a code…" : "Get a code"}
                     </Button>
                 </section>
             )}

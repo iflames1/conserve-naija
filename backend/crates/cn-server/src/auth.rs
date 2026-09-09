@@ -59,6 +59,16 @@ impl FromRequestParts<AppState> for AuthUser {
         {
             let user_id = Uuid::parse_str(rest.trim())
                 .map_err(|_| AppError::Unauthorized("invalid test subject"))?;
+            if let Some(profile) = crate::data::users::PgUserRepo::new(state.db.clone())
+                .get_by_id(UserId::from(user_id))
+                .await?
+            {
+                return Ok(AuthUser {
+                    user_id: profile.id,
+                    email: Some(profile.email),
+                    email_verified: profile.email_verified,
+                });
+            }
             return Ok(AuthUser {
                 user_id: UserId::from(user_id),
                 email: Some("test@conserve.local".into()),

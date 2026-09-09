@@ -73,6 +73,14 @@ impl PgUserRepo {
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
 
+        let applied = crate::data::organisations::PgOrganisationRepo::new(self.pool.clone())
+            .apply_invitations(input.id, &input.email)
+            .await?;
+        if applied > 0 {
+            self.grant_role(input.id, UserRole::OrganisationMember)
+                .await?;
+        }
+
         self.hydrate(row).await
     }
 
