@@ -7,7 +7,7 @@ import type { CollectionPoint } from "@/lib/api/types"
 import { PageContainer } from "@/components/common/page-container"
 import { MachineRowSkeleton } from "@/components/common/page-skeleton"
 import { CollectionPointRow } from "@/components/explore/collection-point-row"
-import { EmptyState } from "@/components/ui"
+import { Button, EmptyState } from "@/components/ui"
 import { demoMachine } from "@/lib/utils"
 
 export default function ExplorePage() {
@@ -18,6 +18,7 @@ export default function ExplorePage() {
                 auth: false,
                 fallback: "Failed to load collection points",
             }),
+        retry: 2,
     })
 
     const machine = demoMachine(points.data ?? [])
@@ -35,14 +36,28 @@ export default function ExplorePage() {
             <div className="mt-8">
                 {points.isPending && !points.data ? (
                     <MachineRowSkeleton />
+                ) : points.isError ? (
+                    <EmptyState
+                        title="Couldn't reach the machine"
+                        description="The list comes from the site. Give it a moment, then try again. You don't register this one from here."
+                        action={
+                            <Button
+                                variant="primary"
+                                disabled={points.isFetching}
+                                onClick={() => void points.refetch()}
+                            >
+                                {points.isFetching ? "Trying…" : "Try again"}
+                            </Button>
+                        }
+                    />
                 ) : machine ? (
                     <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
                         <CollectionPointRow point={machine} />
                     </ul>
                 ) : (
                     <EmptyState
-                        title="Nothing listed yet"
-                        description="The demo machine shows up here when the site is open."
+                        title="Yaba isn't listed"
+                        description="The walk-up machine should show up here on its own. You don't register it from this page."
                     />
                 )}
             </div>

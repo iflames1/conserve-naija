@@ -7,6 +7,7 @@ import { browserApi } from "@/lib/api/browser"
 import type { Pickup } from "@/lib/api/types"
 import { Badge, Button, Card, CardContent, EmptyState } from "@/components/ui"
 import { formatKg } from "@/lib/utils"
+import { usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionUser } from "@/stores/session"
 
@@ -20,6 +21,7 @@ function pickupBadge(status: string) {
 export default function OrgPickupsPage() {
     const user = useSessionUser()
     const { push } = useNotificationActions()
+    const action = usePendingKey()
     const pickups = useQuery({
         queryKey: ["org-pickups", user?.id],
         enabled: Boolean(user),
@@ -60,57 +62,67 @@ export default function OrgPickupsPage() {
                                         <Button
                                             size="sm"
                                             variant="primary"
-                                            onClick={async () => {
-                                                try {
-                                                    await browserApi(
-                                                        `/pickups/${pickup.id}/accept`,
-                                                        {
-                                                            method: "POST",
-                                                            body: JSON.stringify({}),
-                                                            fallback: "Failed to accept pickup",
-                                                        }
-                                                    )
-                                                    void pickups.refetch()
-                                                } catch (error) {
-                                                    push(
-                                                        error instanceof Error
-                                                            ? error.message
-                                                            : "Failed to accept pickup",
-                                                        "danger"
-                                                    )
-                                                }
+                                            disabled={action.pendingKey === pickup.id}
+                                            onClick={() => {
+                                                void action.run(pickup.id, async () => {
+                                                    try {
+                                                        await browserApi(
+                                                            `/pickups/${pickup.id}/accept`,
+                                                            {
+                                                                method: "POST",
+                                                                body: JSON.stringify({}),
+                                                                fallback: "Failed to accept pickup",
+                                                            }
+                                                        )
+                                                        void pickups.refetch()
+                                                    } catch (error) {
+                                                        push(
+                                                            error instanceof Error
+                                                                ? error.message
+                                                                : "Failed to accept pickup",
+                                                            "danger"
+                                                        )
+                                                    }
+                                                })
                                             }}
                                         >
-                                            Accept
+                                            {action.pendingKey === pickup.id
+                                                ? "Accepting…"
+                                                : "Accept"}
                                         </Button>
                                     ) : null}
                                     {pickup.status === "accepted" ? (
                                         <Button
                                             size="sm"
                                             variant="primary"
-                                            onClick={async () => {
-                                                try {
-                                                    await browserApi(
-                                                        `/pickups/${pickup.id}/complete`,
-                                                        {
-                                                            method: "POST",
-                                                            body: JSON.stringify({}),
-                                                            fallback:
-                                                                "Failed to complete pickup",
-                                                        }
-                                                    )
-                                                    void pickups.refetch()
-                                                } catch (error) {
-                                                    push(
-                                                        error instanceof Error
-                                                            ? error.message
-                                                            : "Failed to complete pickup",
-                                                        "danger"
-                                                    )
-                                                }
+                                            disabled={action.pendingKey === pickup.id}
+                                            onClick={() => {
+                                                void action.run(pickup.id, async () => {
+                                                    try {
+                                                        await browserApi(
+                                                            `/pickups/${pickup.id}/complete`,
+                                                            {
+                                                                method: "POST",
+                                                                body: JSON.stringify({}),
+                                                                fallback:
+                                                                    "Failed to complete pickup",
+                                                            }
+                                                        )
+                                                        void pickups.refetch()
+                                                    } catch (error) {
+                                                        push(
+                                                            error instanceof Error
+                                                                ? error.message
+                                                                : "Failed to complete pickup",
+                                                            "danger"
+                                                        )
+                                                    }
+                                                })
                                             }}
                                         >
-                                            Mark collected
+                                            {action.pendingKey === pickup.id
+                                                ? "Saving…"
+                                                : "Mark collected"}
                                         </Button>
                                     ) : null}
                                 </div>

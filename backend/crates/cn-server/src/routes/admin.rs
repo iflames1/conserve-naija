@@ -140,19 +140,48 @@ async fn add_member(
     Json(body): Json<AddMemberBody>,
 ) -> AppResult<Json<serde_json::Value>> {
     require_platform_admin(&state, &auth).await?;
-    let user = PgUserRepo::new(state.db.clone())
-        .get_by_email(&body.email.trim().to_lowercase())
+    add_or_invite_member(
+        &state,
+        parse_uuid(&body.organisation_id, "organisation")?.into(),
+        &body.email,
+        body.member_role.as_deref().unwrap_or("member"),
+    )
+    .await
+}
+
+pub(crate) async fn add_or_invite_member(
+    state: &AppState,
+    organisation_id: cn_domain::OrganisationId,
+    email: &str,
+    member_role: &str,
+) -> AppResult<Json<serde_json::Value>> {
+    let email = email.trim().to_lowercase();
+    if email.is_empty() || !email.contains('@') {
+        return Err(AppError::BadRequest("email is required".into()));
+    }
+    let orgs = PgOrganisationRepo::new(state.db.clone());
+    if orgs.get(organisation_id).await?.is_none() {
+        return Err(AppError::NotFound("organisation"));
+    }
+    if let Some(user) = PgUserRepo::new(state.db.clone())
+        .get_by_email(&email)
         .await?
-        .ok_or(AppError::NotFound("user"))?;
-    PgOrganisationRepo::new(state.db.clone())
-        .add_member(
-            parse_uuid(&body.organisation_id, "organisation")?.into(),
-            user.id,
-            body.member_role.as_deref().unwrap_or("member"),
-        )
+    {
+        orgs.add_member(organisation_id, user.id, member_role)
+            .await?;
+        PgUserRepo::new(state.db.clone())
+            .grant_role(user.id, UserRole::OrganisationMember)
+            .await?;
+        return Ok(Json(serde_json::json!({
+            "ok": true,
+            "pending": false,
+            "userId": user.id
+        })));
+    }
+    orgs.invite_email(organisation_id, &email, member_role)
         .await?;
-    PgUserRepo::new(state.db.clone())
-        .grant_role(user.id, UserRole::OrganisationMember)
-        .await?;
-    Ok(Json(serde_json::json!({ "ok": true, "userId": user.id })))
+    Ok(Json(serde_json::json!({
+        "ok": true,
+        "pending": true
+    })))
 }

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui"
 import { OrgFillCardSkeleton } from "@/components/common/page-skeleton"
 import { formatKg } from "@/lib/utils"
+import { usePendingAction } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionUser } from "@/stores/session"
 
@@ -23,6 +24,7 @@ export default function OrgPointsPage() {
     const { push } = useNotificationActions()
     const [name, setName] = React.useState("")
     const [address, setAddress] = React.useState("")
+    const addSite = usePendingAction()
 
     const points = useQuery({
         queryKey: ["org-points", user?.id],
@@ -44,25 +46,27 @@ export default function OrgPointsPage() {
                 <CardContent className="p-5">
                     <form
                         className="grid gap-3 sm:grid-cols-[1fr_1fr_auto]"
-                        onSubmit={async (event) => {
+                        onSubmit={(event) => {
                             event.preventDefault()
-                            try {
-                                await browserApi("/organisation/collection-points", {
-                                    method: "POST",
-                                    body: JSON.stringify({ name, address }),
-                                    fallback: "Failed to create collection point",
-                                })
-                                setName("")
-                                setAddress("")
-                                void points.refetch()
-                            } catch (error) {
-                                push(
-                                    error instanceof Error
-                                        ? error.message
-                                        : "Failed to create collection point",
-                                    "danger"
-                                )
-                            }
+                            void addSite.run(async () => {
+                                try {
+                                    await browserApi("/organisation/collection-points", {
+                                        method: "POST",
+                                        body: JSON.stringify({ name, address }),
+                                        fallback: "Failed to create collection point",
+                                    })
+                                    setName("")
+                                    setAddress("")
+                                    void points.refetch()
+                                } catch (error) {
+                                    push(
+                                        error instanceof Error
+                                            ? error.message
+                                            : "Failed to create collection point",
+                                        "danger"
+                                    )
+                                }
+                            })
                         }}
                     >
                         <div className="grid gap-2">
@@ -82,8 +86,13 @@ export default function OrgPointsPage() {
                                 onChange={(event) => setAddress(event.target.value)}
                             />
                         </div>
-                        <Button className="self-end" type="submit" variant="primary">
-                            Add site
+                        <Button
+                            className="self-end"
+                            type="submit"
+                            variant="primary"
+                            disabled={addSite.pending || !name.trim() || !address.trim()}
+                        >
+                            {addSite.pending ? "Adding…" : "Add site"}
                         </Button>
                     </form>
                 </CardContent>

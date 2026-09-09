@@ -13,6 +13,7 @@ use crate::data::pickups::PgPickupRepo;
 use crate::device_auth::{generate_api_key, hash_api_key};
 use crate::error::{AppError, AppResult};
 use crate::routes::access::{parse_uuid, primary_membership, require_org_access};
+use crate::routes::admin::add_or_invite_member;
 use crate::routes::collection_points::hydrate_point;
 use crate::routes::dto::{
     DeviceResponse, MaterialResponse, OrganisationOverview, PickupResponse, device_dto,
@@ -66,6 +67,13 @@ struct ThresholdBody {
     threshold_kg: f64,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct AddOrgMemberBody {
+    email: String,
+    member_role: Option<String>,
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route("/organisation", get(overview))
@@ -85,6 +93,7 @@ pub fn router() -> Router<AppState> {
         .route("/organisation/materials", get(org_materials))
         .route("/organisation/material-prices", post(set_price))
         .route("/organisation/pickup-threshold", post(set_threshold))
+        .route("/organisation/members", post(add_org_member))
 }
 
 async fn resolve_org(
@@ -429,4 +438,20 @@ async fn set_threshold(
         .update_threshold(point.id, grams)
         .await?;
     Ok(Json(serde_json::json!({ "ok": true })))
+}
+
+async fn add_org_member(
+    State(state): State<AppState>,
+    auth: AuthUser,
+    Query(query): Query<OrgQuery>,
+    Json(body): Json<AddOrgMemberBody>,
+) -> AppResult<Json<serde_json::Value>> {
+    let membership = resolve_org(&state, &auth, &query).await?;
+    add_or_invite_member(
+        &state,
+        membership.organisation_id,
+        &body.email,
+        body.member_role.as_deref().unwrap_or("member"),
+    )
+    .await
 }

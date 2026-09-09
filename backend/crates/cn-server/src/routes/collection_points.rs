@@ -47,10 +47,12 @@ pub(crate) async fn hydrate_point(
     repo: &PgCollectionPointRepo,
     point: &crate::data::collection_points::CollectionPointRecord,
 ) -> AppResult<CollectionPointResponse> {
-    let materials = repo.supported_materials(point.id).await?;
-    let prices = PgMaterialRepo::new(state.db.clone())
-        .list_current_prices(point.organisation_id)
-        .await?;
+    let materials_repo = PgMaterialRepo::new(state.db.clone());
+    let (materials, prices, inventory) = tokio::try_join!(
+        repo.supported_materials(point.id),
+        materials_repo.list_current_prices(point.organisation_id),
+        repo.inventory_for_point(point.id),
+    )?;
     let material_dtos = materials
         .into_iter()
         .map(|material| {
@@ -68,11 +70,9 @@ pub(crate) async fn hydrate_point(
             }
         })
         .collect();
-    let inventory = repo
-        .inventory_for_point(point.id)
-        .await?
-        .iter()
-        .map(inventory_dto)
-        .collect();
-    Ok(point_dto(point, material_dtos, inventory))
+    Ok(point_dto(
+        point,
+        material_dtos,
+        inventory.iter().map(inventory_dto).collect(),
+    ))
 }

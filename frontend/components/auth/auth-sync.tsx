@@ -8,7 +8,10 @@ import type { AppUser } from "@/lib/api/types"
 import { authClient } from "@/lib/auth/client"
 import { isVerificationDisabled } from "@/lib/auth/flags"
 import { userFromAuthSession } from "@/lib/auth/session-user"
-import { clearAccessTokenCache } from "@/lib/auth/browser-token"
+import {
+    clearAccessTokenCache,
+    getBrowserAccessToken,
+} from "@/lib/auth/browser-token"
 import { useSessionActions, useSessionStore } from "@/stores/session"
 
 export function AuthSync() {
@@ -50,22 +53,32 @@ export function AuthSync() {
         let cancelled = false
 
         async function sync() {
-            try {
-                const synced = await browserApi<AppUser>("/users", {
-                    method: "POST",
-                    fallback: "Failed to sync account",
-                    body: JSON.stringify({
-                        id,
-                        email,
-                        displayName: name,
-                        avatarUrl: image,
-                        emailVerified: emailVerified || isVerificationDisabled(),
-                    }),
-                })
-                if (!cancelled) setUser(synced)
-            } catch (error) {
-                console.error("Failed to sync app user", error)
+            await getBrowserAccessToken().catch(() => null)
+            let lastError: unknown
+            for (let attempt = 0; attempt < 3; attempt += 1) {
+                if (cancelled) return
+                try {
+                    const synced = await browserApi<AppUser>("/users", {
+                        method: "POST",
+                        fallback: "Failed to sync account",
+                        body: JSON.stringify({
+                            id,
+                            email,
+                            displayName: name,
+                            avatarUrl: image,
+                            emailVerified: emailVerified || isVerificationDisabled(),
+                        }),
+                    })
+                    if (!cancelled) setUser(synced)
+                    return
+                } catch (error) {
+                    lastError = error
+                    await new Promise((resolve) =>
+                        setTimeout(resolve, 800 * (attempt + 1))
+                    )
+                }
             }
+            console.error("Failed to sync app user", lastError)
         }
 
         void sync()

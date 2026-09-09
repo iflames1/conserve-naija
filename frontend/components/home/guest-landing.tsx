@@ -34,6 +34,7 @@ export function GuestLanding() {
                 auth: false,
                 fallback: "Failed to load collection points",
             }),
+        retry: 2,
     })
     const all = points.data ?? []
     const machine = demoMachine(all)
@@ -161,7 +162,9 @@ export function GuestLanding() {
                         ))
                     ) : (
                         <li className="px-4 py-10 text-center text-sm text-muted-foreground">
-                            The machine isn&apos;t listed yet.
+                            {points.isError
+                                ? "Couldn't reach the machine. Try again in a moment."
+                                : "Yaba isn't listed yet. You don't register it from here."}
                         </li>
                     )}
                 </ul>
