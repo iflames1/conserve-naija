@@ -3,42 +3,22 @@
 import * as React from "react"
 
 import { getActiveRecyclingSessionAction } from "@/actions/sessions"
+import { getBrowserAccessToken } from "@/lib/auth/browser-token"
 import { appSocket } from "@/lib/ws/app-socket"
 import type { RecyclingSession } from "@/lib/api/types"
 import type { WsEnvelope } from "@/lib/ws/protocol"
 import { useLiveActions } from "@/stores/live"
 import { useSessionActions, useSessionStore, useSessionUser } from "@/stores/session"
 
-const TOKEN_TTL_MS = 60_000
-let cachedToken: { value: string; expires: number } | null = null
-let tokenInFlight: Promise<string | null> | null = null
-
 async function mintAccessToken(): Promise<string | null> {
-    if (cachedToken && cachedToken.expires > Date.now()) {
-        return cachedToken.value
+    try {
+        return await getBrowserAccessToken()
+    } catch {
+        return null
     }
-    if (tokenInFlight) return tokenInFlight
-
-    tokenInFlight = (async () => {
-        try {
-            const { getAccessTokenAction } = await import("@/actions/auth-token")
-            const token = await getAccessTokenAction()
-            cachedToken = { value: token, expires: Date.now() + TOKEN_TTL_MS }
-            return token
-        } catch {
-            cachedToken = null
-            return null
-        } finally {
-            tokenInFlight = null
-        }
-    })()
-
-    return tokenInFlight
 }
 
-export function clearAccessTokenCache(): void {
-    cachedToken = null
-}
+export { clearAccessTokenCache } from "@/lib/auth/browser-token"
 
 function asSession(value: unknown): RecyclingSession | null {
     if (!value || typeof value !== "object") return null

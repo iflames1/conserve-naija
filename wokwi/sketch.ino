@@ -22,15 +22,12 @@
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
-// Laptop (VS Code, or wokwi.com + Private IoT Gateway): this machine's cn-server.
-// Public wokwi.com project: the HTTPS origin of cn-server on Railway, no trailing slash.
-//   Railway → cn-server → Settings → Networking → public domain
-//   Then open https://<that-domain>/health — if that loads, paste the origin here.
-const char* API_HOST = "http://host.wokwi.internal:8080";
-// const char* API_HOST = "https://YOUR-SERVICE.up.railway.app";
+// Laptop (VS Code + Private IoT Gateway): http://host.wokwi.internal:8080
+// Public viewer / wokwi.com: HTTPS origin of cn-server, no trailing slash.
+const char* API_HOST = "https://conserve-naija-production.up.railway.app";
 const char* DEVICE_KEY = "cn-dev-yaba-device-key";
 const char* MATERIAL = "plastic";
-const char* FIRMWARE = "wokwi-0.3.3";
+const char* FIRMWARE = "wokwi-0.3.4";
 
 const uint8_t PIN_WEIGHT = 34;
 const uint8_t PIN_WEIGH_BTN = 18;

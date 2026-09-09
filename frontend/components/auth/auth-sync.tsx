@@ -6,7 +6,8 @@ import { browserApi } from "@/lib/api/browser"
 import type { AppUser } from "@/lib/api/types"
 import { authClient } from "@/lib/auth/client"
 import { isVerificationDisabled } from "@/lib/auth/flags"
-import { clearAccessTokenCache } from "@/components/ws/app-ws-provider"
+import { userFromAuthSession } from "@/lib/auth/session-user"
+import { clearAccessTokenCache } from "@/lib/auth/browser-token"
 import { useSessionActions, useSessionStore } from "@/stores/session"
 
 export function AuthSync() {
@@ -18,18 +19,34 @@ export function AuthSync() {
     const image = session?.user?.image ?? null
     const emailVerified = session?.user?.emailVerified ?? null
 
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         if (isPending) return
+        if (!id || !email) {
+            setUser(null)
+            setLoading(false)
+            clearAccessTokenCache()
+            return
+        }
+        const current = useSessionStore.getState().user
+        if (!current || current.id !== id) {
+            setUser(
+                userFromAuthSession({
+                    id,
+                    email,
+                    name,
+                    image,
+                    emailVerified,
+                })
+            )
+        }
+        setLoading(false)
+    }, [isPending, id, email, name, image, emailVerified, setLoading, setUser])
+
+    React.useEffect(() => {
+        if (isPending || !id || !email) return
         let cancelled = false
 
         async function sync() {
-            if (!id || !email) {
-                setUser(null)
-                setLoading(false)
-                clearAccessTokenCache()
-                return
-            }
-            if (!useSessionStore.getState().user) setLoading(true)
             try {
                 const synced = await browserApi<AppUser>("/users", {
                     method: "POST",
@@ -45,9 +62,6 @@ export function AuthSync() {
                 if (!cancelled) setUser(synced)
             } catch (error) {
                 console.error("Failed to sync app user", error)
-                if (!cancelled && !useSessionStore.getState().user) setUser(null)
-            } finally {
-                if (!cancelled) setLoading(false)
             }
         }
 
@@ -55,7 +69,7 @@ export function AuthSync() {
         return () => {
             cancelled = true
         }
-    }, [isPending, id, email, name, image, emailVerified, setLoading, setUser])
+    }, [isPending, id, email, name, image, emailVerified, setUser])
 
     return null
 }
