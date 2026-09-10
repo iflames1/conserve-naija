@@ -4,6 +4,12 @@ Public sim (prebuilt firmware, no Wokwi cloud compile):
 
 [Open in Wokwi viewer](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Fdiagram.json&firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Ffirmware.bin)
 
+Give that link about 10–20 seconds on a first visit. Wokwi fetches `diagram.json` and `firmware.bin` from GitHub (a couple of seconds) then boots the ESP32 emulator. The board should show TURN IN PLASTIC shortly after WiFi comes up. This viewer already has a built firmware; it does not wait on Wokwi's cloud compilers.
+
+If the LCD stays on Connecting WiFi for minutes, that is a bug. After a network failure the machine should say NO REPLY or NO WIFI and reset.
+
+Sketch-only Wokwi project (uses their compilers, often queued for a minute or more): [wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977)
+
 That firmware talks to `https://conserve-naija-production.up.railway.app`. Assets live in the public repo [iflames1/conserve-naija-wokwi](https://github.com/iflames1/conserve-naija-wokwi). After you change the sketch:
 
 ```bash
@@ -12,8 +18,6 @@ pio run
 cp .pio/build/esp32dev/firmware.bin /tmp/firmware.bin
 # then replace firmware.bin on conserve-naija-wokwi and push
 ```
-
-Sketch-only Wokwi project (uses their compilers, often queued): [wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977)
 
 This is a real ESP32 project. It speaks the same backend protocol as `cn-simulator`:
 

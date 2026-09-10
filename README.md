@@ -158,4 +158,4 @@ Integration tests cover the mission → claim → measure → reward → invento
 
 ## Wokwi
 
-See [`wokwi/README.md`](wokwi/README.md). Public sim: [wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977). Firmware and `cn-simulator` share one protocol. Replacing the simulator with a real ESP32 does not change domain logic.
+See [`wokwi/README.md`](wokwi/README.md). Prebuilt public sim (no compile queue, usually 10–20s to the idle screen): [Wokwi viewer](https://wokwi.com/experimental/viewer?diagram=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Fdiagram.json&firmware=https%3A%2F%2Fraw.githubusercontent.com%2Fiflames1%2Fconserve-naija-wokwi%2Fmain%2Ffirmware.bin). Sketch-only project (cloud compile, often queued): [wokwi.com/projects/474695400040446977](https://wokwi.com/projects/474695400040446977). Firmware and `cn-simulator` share one protocol. Replacing the simulator with a real ESP32 does not change domain logic.

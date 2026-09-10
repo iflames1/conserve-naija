@@ -25,6 +25,10 @@ async fn happy_path_mission_iot_and_pickup() {
     assert_eq!(health["ok"], true);
     assert_eq!(health["service"], "conserve-naija");
 
+    let ready = ctx.get("/ready", None).await;
+    assert_eq!(ready["ok"], true);
+    assert_eq!(ready["postgres"], "up");
+
     let user = Uuid::now_v7();
     ctx.upsert_user(user, &format!("citizen-{user}@test.local"), "Ada")
         .await;

@@ -1,6 +1,6 @@
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
+use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 
-use anyhow::{Context, Result, anyhow};
+use anyhow::{anyhow, Context, Result};
 
 use crate::services::jwt::JwtConfig;
 
@@ -62,20 +62,16 @@ impl Config {
     }
 }
 
-/// Bind addresses for `HOST`/`PORT`.
+/// Listen address for `HOST`/`PORT`.
 ///
-/// Unspecified hosts (`0.0.0.0` and `::`) listen on IPv4 **and** IPv6.
-/// Railway's edge reaches the container over IPv6; an IPv4-only bind
-/// (`0.0.0.0:$PORT`) accepts no proxy traffic — TLS succeeds at the
-/// edge, then the client hangs with 0 bytes.
-pub fn listen_addrs(host: IpAddr, port: u16) -> Vec<SocketAddr> {
+/// Unspecified hosts (`0.0.0.0` and `::`) bind `[::]:PORT` once. On Linux
+/// that socket is dual-stack, so a second bind on `0.0.0.0:$PORT` is
+/// EADDRINUSE. Railway's edge reaches the container over IPv6.
+pub fn listen_addr(host: IpAddr, port: u16) -> SocketAddr {
     if host.is_unspecified() {
-        vec![
-            SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)),
-            SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)),
-        ]
+        SocketAddr::from((Ipv6Addr::UNSPECIFIED, port))
     } else {
-        vec![SocketAddr::from((host, port))]
+        SocketAddr::from((host, port))
     }
 }
 
@@ -106,23 +102,39 @@ pub fn setting(key: &str, local: &str) -> Result<String> {
 
 #[cfg(test)]
 mod tests {
+    use std::net::Ipv4Addr;
+
     use super::*;
 
     #[test]
-    fn unspecified_v4_host_listens_ipv6_and_ipv4() {
-        let addrs = listen_addrs(Ipv4Addr::UNSPECIFIED.into(), 8080);
+    fn unspecified_host_listens_ipv6_once() {
         assert_eq!(
-            addrs,
-            vec![
-                SocketAddr::from((Ipv6Addr::UNSPECIFIED, 8080)),
-                SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080)),
-            ]
+            listen_addr(Ipv4Addr::UNSPECIFIED.into(), 8080),
+            SocketAddr::from((Ipv6Addr::UNSPECIFIED, 8080))
+        );
+        assert_eq!(
+            listen_addr(Ipv6Addr::UNSPECIFIED.into(), 8080),
+            SocketAddr::from((Ipv6Addr::UNSPECIFIED, 8080))
         );
     }
 
     #[test]
     fn loopback_stays_v4() {
-        let addrs = listen_addrs(Ipv4Addr::LOCALHOST.into(), 8080);
-        assert_eq!(addrs, vec![SocketAddr::from((Ipv4Addr::LOCALHOST, 8080))]);
+        assert_eq!(
+            listen_addr(Ipv4Addr::LOCALHOST.into(), 8080),
+            SocketAddr::from((Ipv4Addr::LOCALHOST, 8080))
+        );
+    }
+
+    #[tokio::test]
+    async fn dual_stack_v6_owns_v4() {
+        let listener = tokio::net::TcpListener::bind(listen_addr(Ipv4Addr::UNSPECIFIED.into(), 0))
+            .await
+            .expect("bind [::]");
+        let port = listener.local_addr().expect("local addr").port();
+        let v4 = tokio::net::TcpListener::bind(SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)))
+            .await
+            .expect_err("0.0.0.0 should already be owned by dual-stack [::]");
+        assert_eq!(v4.kind(), std::io::ErrorKind::AddrInUse);
     }
 }
