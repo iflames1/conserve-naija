@@ -75,15 +75,15 @@ export function MachineKiosk() {
             >
                 {phase === "idle" ? (
                     <>
-                        <p>CONSERVE NAIJA</p>
-                        <p>TURN IN PLASTIC</p>
-                        <p className="text-foreground/80">Get a code first</p>
-                        <p className="text-foreground/80">Type it here</p>
+                        <p>Welcome to</p>
+                        <p>Conserve Site Yaba</p>
+                        <p className="text-foreground/80">CN-MACHINE-001</p>
+                        <p className="text-foreground/80">Input Conserve OTP</p>
                     </>
                 ) : null}
                 {phase === "code" ? (
                     <>
-                        <p>YOUR CODE</p>
+                        <p>YOUR OTP</p>
                         <p className="text-foreground">
                             {`${digits.padEnd(6, "_").slice(0, 3)} ${digits.padEnd(6, "_").slice(3)}`}
                         </p>
@@ -94,8 +94,8 @@ export function MachineKiosk() {
                 {phase === "in" ? (
                     <>
                         <p>YOU&apos;RE IN</p>
-                        <p className="text-foreground">{kg.toFixed(2)} KG</p>
-                        <p className="text-foreground/80">Put it on the scale</p>
+                        <p className="text-foreground">{kg.toFixed(2)} KG mixed</p>
+                        <p className="text-foreground/80">Dump mixed waste</p>
                         <p className="text-foreground/80">Press WEIGH</p>
                     </>
                 ) : null}
@@ -110,9 +110,9 @@ export function MachineKiosk() {
                 {phase === "done" ? (
                     <>
                         <p>THAT&apos;S IN</p>
-                        <p className="text-foreground">{kg.toFixed(2)} KG</p>
-                        <p className="text-foreground">+{Math.round(kg * 100)} GP</p>
-                        <p className="text-foreground/80">Thank you</p>
+                        <p className="text-foreground">{kg.toFixed(2)} KG MIXED</p>
+                        <p className="text-foreground">+{Math.round(kg * 100)} CP</p>
+                        <p className="text-foreground/80">Conserve Site Yaba</p>
                     </>
                 ) : null}
             </div>

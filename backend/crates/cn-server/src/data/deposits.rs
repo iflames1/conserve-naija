@@ -27,6 +27,25 @@ pub struct DepositRecord {
     pub created_at: DateTime<Utc>,
     pub measured_at: Option<DateTime<Utc>>,
     pub confirmed_at: Option<DateTime<Utc>>,
+    pub fractions: Vec<DepositFractionRecord>,
+}
+
+#[derive(Debug, Clone)]
+pub struct DepositFractionRecord {
+    pub material_id: MaterialId,
+    pub material_name: String,
+    pub material_slug: String,
+    pub weight_grams: i64,
+    pub price_per_kg_naira: i64,
+    pub green_points: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct FractionLine {
+    pub material_id: MaterialId,
+    pub weight_grams: i64,
+    pub price_per_kg_naira: i64,
+    pub green_points: i64,
 }
 
 #[derive(sqlx::FromRow)]
@@ -129,7 +148,10 @@ impl PgDepositRepo {
             .fetch_optional(&self.pool)
             .await
             .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_deposit).transpose()
+        match row.map(into_deposit).transpose()? {
+            Some(deposit) => Ok(Some(self.with_fractions(deposit).await?)),
+            None => Ok(None),
+        }
     }
 
     pub async fn get_by_session(
@@ -143,7 +165,10 @@ impl PgDepositRepo {
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_deposit).transpose()
+        match row.map(into_deposit).transpose()? {
+            Some(deposit) => Ok(Some(self.with_fractions(deposit).await?)),
+            None => Ok(None),
+        }
     }
 
     pub async fn get_by_idempotency(&self, key: &str) -> AppResult<Option<DepositRecord>> {
@@ -170,7 +195,8 @@ impl PgDepositRepo {
         .fetch_all(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        rows.into_iter().map(into_deposit).collect()
+        self.with_fractions_many(rows.into_iter().map(into_deposit).collect::<AppResult<Vec<_>>>()?)
+            .await
     }
 
     pub async fn list_for_org(
@@ -186,7 +212,8 @@ impl PgDepositRepo {
         .fetch_all(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        rows.into_iter().map(into_deposit).collect()
+        self.with_fractions_many(rows.into_iter().map(into_deposit).collect::<AppResult<Vec<_>>>()?)
+            .await
     }
 
     pub async fn pending_for_device(&self, device_id: DeviceId) -> AppResult<Vec<DepositRecord>> {
@@ -328,6 +355,159 @@ impl PgDepositRepo {
         Ok(deposit_id)
     }
 
+    pub async fn insert_confirmed_fractions_in_tx(
+        tx: &mut Transaction<'_, Postgres>,
+        user_id: UserId,
+        collection_point_id: CollectionPointId,
+        organisation_id: OrganisationId,
+        device_id: DeviceId,
+        session_id: RecyclingSessionId,
+        fractions: &[FractionLine],
+        idempotency_key: &str,
+    ) -> AppResult<DepositId> {
+        let primary = fractions
+            .iter()
+            .max_by_key(|line| line.weight_grams)
+            .ok_or_else(|| AppError::BadRequest("deposit has no material fractions".into()))?;
+        let total_weight: i64 = fractions.iter().map(|line| line.weight_grams).sum();
+        let total_points: i64 = fractions.iter().map(|line| line.green_points).sum();
+
+        let result = sqlx::query_scalar::<_, Uuid>(
+            r#"
+            INSERT INTO deposits (
+                user_id, collection_point_id, organisation_id, material_id, device_id,
+                session_id, status, weight_grams, price_per_kg_naira, green_points,
+                idempotency_key, measured_at, confirmed_at
+            )
+            VALUES ($1, $2, $3, $4, $5, $6, 'confirmed', $7, $8, $9, $10, now(), now())
+            ON CONFLICT (idempotency_key) DO NOTHING
+            RETURNING id
+            "#,
+        )
+        .bind(user_id.as_uuid())
+        .bind(collection_point_id.as_uuid())
+        .bind(organisation_id.as_uuid())
+        .bind(primary.material_id.as_uuid())
+        .bind(device_id.as_uuid())
+        .bind(session_id.as_uuid())
+        .bind(total_weight)
+        .bind(primary.price_per_kg_naira)
+        .bind(total_points)
+        .bind(idempotency_key)
+        .fetch_optional(&mut **tx)
+        .await
+        .map_err(|err| AppError::Internal(err.into()))?;
+
+        let (deposit_id, created) = match result {
+            Some(id) => (DepositId::from(id), true),
+            None => {
+                let existing = sqlx::query_scalar::<_, Uuid>(
+                    "SELECT id FROM deposits WHERE idempotency_key = $1",
+                )
+                .bind(idempotency_key)
+                .fetch_one(&mut **tx)
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+                (DepositId::from(existing), false)
+            }
+        };
+
+        if created {
+            for line in fractions {
+                sqlx::query(
+                    r#"
+                    INSERT INTO deposit_fractions (
+                        deposit_id, material_id, weight_grams, price_per_kg_naira, green_points
+                    )
+                    VALUES ($1, $2, $3, $4, $5)
+                    ON CONFLICT (deposit_id, material_id) DO NOTHING
+                    "#,
+                )
+                .bind(deposit_id.as_uuid())
+                .bind(line.material_id.as_uuid())
+                .bind(line.weight_grams)
+                .bind(line.price_per_kg_naira)
+                .bind(line.green_points)
+                .execute(&mut **tx)
+                .await
+                .map_err(|err| AppError::Internal(err.into()))?;
+            }
+            credit_ledger_in_tx(tx, user_id, total_points, deposit_id).await?;
+            for line in fractions {
+                add_inventory_in_tx(tx, collection_point_id, line.material_id, line.weight_grams)
+                    .await?;
+            }
+        }
+        Ok(deposit_id)
+    }
+
+    pub async fn list_fractions(
+        &self,
+        deposit_id: DepositId,
+    ) -> AppResult<Vec<DepositFractionRecord>> {
+        #[derive(sqlx::FromRow)]
+        struct Row {
+            material_id: Uuid,
+            material_name: String,
+            material_slug: String,
+            weight_grams: i64,
+            price_per_kg_naira: i64,
+            green_points: i64,
+        }
+        let rows = sqlx::query_as::<_, Row>(
+            r#"
+            SELECT f.material_id, m.name AS material_name, m.slug::text AS material_slug,
+                   f.weight_grams, f.price_per_kg_naira, f.green_points
+            FROM deposit_fractions f
+            JOIN materials m ON m.id = f.material_id
+            WHERE f.deposit_id = $1
+            ORDER BY f.weight_grams DESC
+            "#,
+        )
+        .bind(deposit_id.as_uuid())
+        .fetch_all(&self.pool)
+        .await
+        .map_err(|err| AppError::Internal(err.into()))?;
+        Ok(rows
+            .into_iter()
+            .map(|row| DepositFractionRecord {
+                material_id: MaterialId::from(row.material_id),
+                material_name: row.material_name,
+                material_slug: row.material_slug,
+                weight_grams: row.weight_grams,
+                price_per_kg_naira: row.price_per_kg_naira,
+                green_points: row.green_points,
+            })
+            .collect())
+    }
+
+    async fn with_fractions(&self, mut deposit: DepositRecord) -> AppResult<DepositRecord> {
+        deposit.fractions = self.list_fractions(deposit.id).await?;
+        if deposit.fractions.is_empty()
+            && let (Some(grams), Some(points)) = (deposit.weight_grams, deposit.green_points)
+        {
+            deposit.fractions.push(DepositFractionRecord {
+                material_id: deposit.material_id,
+                material_name: deposit.material_name.clone(),
+                material_slug: deposit.material_slug.clone(),
+                weight_grams: grams,
+                price_per_kg_naira: deposit.price_per_kg_naira.unwrap_or(0),
+                green_points: points,
+            });
+        }
+        Ok(deposit)
+    }
+
+    async fn with_fractions_many(
+        &self,
+        mut deposits: Vec<DepositRecord>,
+    ) -> AppResult<Vec<DepositRecord>> {
+        for deposit in &mut deposits {
+            *deposit = self.with_fractions(deposit.clone()).await?;
+        }
+        Ok(deposits)
+    }
+
     pub async fn confirm_in_tx(
         tx: &mut Transaction<'_, Postgres>,
         deposit_id: DepositId,
@@ -372,15 +552,12 @@ impl PgDepositRepo {
     }
 }
 
-async fn credit_reward_in_tx(
+async fn credit_ledger_in_tx(
     tx: &mut Transaction<'_, Postgres>,
     user_id: UserId,
-    collection_point_id: CollectionPointId,
-    material_id: MaterialId,
-    weight_grams: i64,
     green_points: i64,
     deposit_id: DepositId,
-) -> AppResult<()> {
+) -> AppResult<bool> {
     let inserted = sqlx::query(
         r#"
         INSERT INTO green_point_transactions (
@@ -399,7 +576,7 @@ async fn credit_reward_in_tx(
     .map_err(|err| AppError::Internal(err.into()))?;
 
     if inserted.rows_affected() == 0 {
-        return Ok(());
+        return Ok(false);
     }
 
     sqlx::query(
@@ -414,7 +591,15 @@ async fn credit_reward_in_tx(
     .execute(&mut **tx)
     .await
     .map_err(|err| AppError::Internal(err.into()))?;
+    Ok(true)
+}
 
+async fn add_inventory_in_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    collection_point_id: CollectionPointId,
+    material_id: MaterialId,
+    weight_grams: i64,
+) -> AppResult<()> {
     sqlx::query(
         r#"
         INSERT INTO collection_point_inventory (collection_point_id, material_id, weight_grams)
@@ -430,8 +615,22 @@ async fn credit_reward_in_tx(
     .execute(&mut **tx)
     .await
     .map_err(|err| AppError::Internal(err.into()))?;
-
     Ok(())
+}
+
+async fn credit_reward_in_tx(
+    tx: &mut Transaction<'_, Postgres>,
+    user_id: UserId,
+    collection_point_id: CollectionPointId,
+    material_id: MaterialId,
+    weight_grams: i64,
+    green_points: i64,
+    deposit_id: DepositId,
+) -> AppResult<()> {
+    if !credit_ledger_in_tx(tx, user_id, green_points, deposit_id).await? {
+        return Ok(());
+    }
+    add_inventory_in_tx(tx, collection_point_id, material_id, weight_grams).await
 }
 
 fn deposit_select(where_clause: &str) -> String {
@@ -469,5 +668,6 @@ fn into_deposit(row: DepositRow) -> AppResult<DepositRecord> {
         created_at: row.created_at,
         measured_at: row.measured_at,
         confirmed_at: row.confirmed_at,
+        fractions: Vec::new(),
     })
 }

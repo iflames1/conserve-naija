@@ -94,7 +94,7 @@ export async function startRecyclingSession(): Promise<RecyclingSession> {
         headers: await authHeaders(),
         body: JSON.stringify({}),
     })
-    return parse(response, "Couldn't get a code")
+    return parse(response, "Couldn't start recycling")
 }
 
 export async function getActiveRecyclingSession(): Promise<RecyclingSession | null> {
@@ -104,7 +104,7 @@ export async function getActiveRecyclingSession(): Promise<RecyclingSession | nu
     })
     const data = await parse<RecyclingSession | null>(
         response,
-        "Couldn't load your code"
+        "Couldn't load your OTP"
     )
     return data
 }

@@ -2,7 +2,7 @@ import { RiCalendarLine } from "@remixicon/react"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui"
 import type { AppUser } from "@/lib/api/types"
-import { cn, formatDate, formatNaira, formatPoints } from "@/lib/utils"
+import { cn, cpBalance, formatDate, formatNaira, formatPoints } from "@/lib/utils"
 
 export function ProfileHeader({ user }: { user: AppUser }) {
     return (
@@ -38,8 +38,8 @@ export function ProfileHeader({ user }: { user: AppUser }) {
 
                 <dl className="flex flex-wrap items-end gap-x-8 gap-y-4">
                     <Headline
-                        label="Green Points"
-                        value={`${formatPoints(user.greenPointsBalance)} GP`}
+                        label="Conserve Points"
+                        value={`${formatPoints(cpBalance(user))} CP`}
                         accent="text-primary"
                     />
                     <Headline label="Value" value={formatNaira(user.nairaValue)} />

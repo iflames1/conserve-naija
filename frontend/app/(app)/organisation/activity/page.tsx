@@ -3,9 +3,9 @@
 import { useQuery } from "@tanstack/react-query"
 
 import { browserApi } from "@/lib/api/browser"
+import { OrgDepositRow } from "@/components/organisation/deposit-row"
 import { EmptyState } from "@/components/ui"
 import type { Deposit } from "@/lib/api/types"
-import { formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
 import { useSessionUser } from "@/stores/session"
 
 export default function OrgActivityPage() {
@@ -29,23 +29,7 @@ export default function OrgActivityPage() {
             <div className="mt-8 space-y-2">
                 {deposits.isPending && !deposits.data ? null : deposits.data?.length ? (
                     deposits.data.map((deposit) => (
-                        <div
-                            key={deposit.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 px-4 py-3"
-                        >
-                            <div>
-                                <p className="font-medium">
-                                    +{formatKg(deposit.weightKg)} {deposit.materialName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {deposit.collectionPointName} · +
-                                    {formatPoints(deposit.greenPoints)} GP
-                                </p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {formatRelativeTime(deposit.confirmedAt ?? deposit.createdAt)}
-                            </p>
-                        </div>
+                        <OrgDepositRow key={deposit.id} deposit={deposit} />
                     ))
                 ) : (
                     <EmptyState title="No deposits yet" />

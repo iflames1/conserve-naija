@@ -1,10 +1,9 @@
 "use client"
 
 import * as React from "react"
-import { useQuery } from "@tanstack/react-query"
 
 import { browserApi } from "@/lib/api/browser"
-import type { Deposit, RecyclingSession } from "@/lib/api/types"
+import type { RecyclingSession } from "@/lib/api/types"
 import { SectionHeader } from "@/components/common/section"
 import { MissionPanel } from "@/components/home/mission-panel"
 import { ActivityHistory } from "@/components/profile/activity-history"
@@ -15,7 +14,9 @@ import {
     formatNaira,
     formatPoints,
     greetingForNow,
+    cpBalance,
 } from "@/lib/utils"
+import { useActivityDeposits, useActivityLoading } from "@/stores/activity"
 import { useLiveActions, useLiveSession } from "@/stores/live"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionUser } from "@/stores/session"
@@ -32,26 +33,12 @@ export function CitizenHome() {
         setGreeting(greetingForNow())
     }, [])
 
-    const deposits = useQuery({
-        queryKey: ["my-deposits", user?.id],
-        enabled: Boolean(user),
-        queryFn: async () => {
-            const rows = await browserApi<Deposit[]>("/me/deposits", {
-                fallback: "Failed to load deposits",
-            })
-            return rows.filter((row) => row.status === "confirmed")
-        },
-    })
-
-    React.useEffect(() => {
-        if (session?.status === "completed") {
-            void deposits.refetch()
-        }
-    }, [session?.status, deposits])
+    const deposits = useActivityDeposits()
+    const depositsLoading = useActivityLoading()
 
     if (!user) return null
 
-    const recent = deposits.data ?? []
+    const recent = deposits
 
     return (
         <div className="space-y-8">
@@ -67,10 +54,10 @@ export function CitizenHome() {
                             {greeting}, {firstName(user.displayName)}
                         </p>
                         <h1 className="mt-2 font-display text-4xl sm:text-5xl">
-                            {formatPoints(user.greenPointsBalance)} GP
+                            {formatPoints(cpBalance(user))} CP
                         </h1>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            {formatNaira(user.nairaValue)} in your wallet
+                            {formatNaira(user.nairaValue)} in your wallet · 1 CP = ₦1
                         </p>
                     </div>
                     <dl className="flex flex-wrap gap-x-8 gap-y-3">
@@ -100,13 +87,14 @@ export function CitizenHome() {
                 <section className="relative isolate overflow-hidden rounded-2xl border border-primary/25 bg-primary/8 p-5 sm:p-7">
                     <div aria-hidden className="absolute inset-0 -z-10 bg-grid opacity-50" />
                     <p className="text-xs font-medium tracking-[0.18em] text-primary uppercase">
-                        At a machine
+                        In the Conserve Site
                     </p>
                     <h2 className="mt-3 font-display text-3xl sm:text-4xl">
-                        Turn in your plastic
+                        Start recycling
                     </h2>
                     <p className="mt-3 max-w-md text-sm text-muted-foreground">
-                        You&apos;ll get a code for the keypad.
+                        You&apos;ll get a Conserve OTP for the keypad. The site
+                        comes from the machine in front of you.
                     </p>
                     <Button
                         className="mt-6"
@@ -121,7 +109,7 @@ export function CitizenHome() {
                                     {
                                         method: "POST",
                                         body: JSON.stringify({}),
-                                        fallback: "Couldn't get a code",
+                                        fallback: "Couldn't start recycling",
                                     }
                                 )
                                 setSession(session)
@@ -129,14 +117,14 @@ export function CitizenHome() {
                                 push(
                                     error instanceof Error
                                         ? error.message
-                                        : "Couldn't get a code",
+                                        : "Couldn't start recycling",
                                     "danger"
                                 )
                             }
                             setStarting(false)
                         }}
                     >
-                        {starting ? "Getting a code…" : "Get a code"}
+                        {starting ? "Starting…" : "Start recycling"}
                     </Button>
                 </section>
             )}
@@ -154,7 +142,7 @@ export function CitizenHome() {
                 />
                 <ActivityHistory
                     deposits={recent}
-                    loading={deposits.isPending && !deposits.data}
+                    loading={depositsLoading && recent.length === 0}
                     limit={4}
                     empty={
                         <p className="text-sm text-muted-foreground">

@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query"
 import { browserApi } from "@/lib/api/browser"
 import type { Pickup } from "@/lib/api/types"
 import { Badge, Button, Card, CardContent, EmptyState } from "@/components/ui"
-import { formatKg } from "@/lib/utils"
+import { formatKg, siteLabel } from "@/lib/utils"
 import { usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionUser } from "@/stores/session"
@@ -45,7 +45,7 @@ export default function OrgPickupsPage() {
                             <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
                                 <div>
                                     <p className="font-medium">
-                                        {pickup.collectionPointName} · {pickup.materialName}
+                                        {siteLabel(pickup) || pickup.collectionPointName} · {pickup.materialName}
                                     </p>
                                     <p className="mt-1 text-xs text-muted-foreground">
                                         {formatKg(pickup.inventoryKgAtReady)} at ready

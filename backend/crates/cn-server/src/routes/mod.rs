@@ -2,7 +2,7 @@ mod access;
 mod admin;
 mod collection_points;
 mod deposits;
-mod dto;
+pub(crate) mod dto;
 mod health;
 mod iot;
 mod organisation;

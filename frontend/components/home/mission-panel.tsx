@@ -5,13 +5,31 @@ import * as React from "react"
 import { browserApi } from "@/lib/api/browser"
 import { Badge, Button, LiveDot } from "@/components/ui"
 import {
+    cpAmount,
     formatKg,
     formatPoints,
     formatSessionCode,
+    siteLabel,
 } from "@/lib/utils"
 import type { RecyclingSession } from "@/lib/api/types"
 import { useLiveActions, useLiveSession } from "@/stores/live"
 import { useNotificationActions } from "@/stores/notifications"
+
+function phaseFor(status: RecyclingSession["status"]): 0 | 1 | 2 {
+    switch (status) {
+        case "waiting_for_machine":
+            return 0
+        case "connected":
+        case "sorting":
+        case "measuring":
+            return 1
+        case "processing":
+        case "completed":
+            return 2
+        default:
+            return 0
+    }
+}
 
 function statusCopy(session: RecyclingSession): {
     title: string
@@ -19,73 +37,82 @@ function statusCopy(session: RecyclingSession): {
     live: boolean
     phase: 0 | 1 | 2
 } {
+    const site = siteLabel(session)
+    const phase = phaseFor(session.status)
     switch (session.status) {
         case "waiting_for_machine":
             return {
-                title: "Your code",
+                title: "Your Conserve OTP",
                 body: "Type it on the keypad. You've got a couple of minutes.",
                 live: true,
-                phase: 0,
+                phase,
             }
         case "connected":
             return {
-                title: "You're in",
-                body: "Put the plastic on the scale.",
+                title: site ? `You're connected to ${site}` : "You're in",
+                body: "Dump what you've got. The machine sorts it from there.",
                 live: true,
-                phase: 1,
+                phase,
+            }
+        case "sorting":
+            return {
+                title: "Sorting",
+                body: "Mixed waste is splitting into material fractions.",
+                live: true,
+                phase,
             }
         case "measuring":
             return {
                 title: "On the scale",
                 body: session.weightKg
                     ? `${formatKg(session.weightKg)} so far.`
-                    : "Leave it on until the weight settles.",
+                    : "Fractions are being weighed.",
                 live: true,
-                phase: 1,
+                phase,
             }
         case "processing":
             return {
                 title: "Counting it up",
-                body: "Hang on.",
+                body: "Hang on. Conserve Points land in a moment.",
                 live: true,
-                phase: 2,
+                phase,
             }
         case "completed":
             return {
                 title: "That's in",
-                body: "This code is done. Get another when you have more to turn in.",
+                body: "This OTP is done. Start recycling again when you have more.",
                 live: false,
-                phase: 2,
+                phase,
             }
         case "expired":
             return {
-                title: "Code timed out",
-                body: "They only last a couple of minutes. Get a new one at the machine.",
+                title: "OTP timed out",
+                body: "They only last a couple of minutes. Start recycling again when you're at the site.",
                 live: false,
-                phase: 0,
+                phase,
             }
         case "cancelled":
             return {
                 title: "Alright, later",
                 body: "Nothing was turned in.",
                 live: false,
-                phase: 0,
+                phase,
             }
         case "failed":
             return {
                 title: "This one didn't finish",
                 body:
                     session.failureReason ??
-                    "Get a new code and try that machine again.",
+                    "Start recycling again at that site.",
                 live: false,
-                phase: 0,
+                phase,
             }
         default:
             return {
-                title: "Turn in plastic",
+                title: "Start recycling",
                 body: "Follow the machine in front of you.",
                 live: false,
-                phase: 0,
+                phase,
             }
     }
 }
@@ -98,7 +125,7 @@ function closedLabel(status: RecyclingSession["status"]): string {
     return "Done"
 }
 
-const PHASES = ["Code", "Scale", "Paid"]
+const PHASES = ["Enter OTP", "Recycle Waste", "Earn Conserve Point"]
 
 export function MissionPanel() {
     const session = useLiveSession()
@@ -112,16 +139,23 @@ export function MissionPanel() {
     const open =
         session.status === "waiting_for_machine" ||
         session.status === "connected" ||
+        session.status === "sorting" ||
         session.status === "measuring" ||
         session.status === "processing"
     const showCode = open
+    const atSite =
+        session.status === "connected" ||
+        session.status === "sorting" ||
+        session.status === "measuring"
+    const fractions = session.fractions ?? []
+    const points = cpAmount(session)
 
     return (
         <section className="relative isolate overflow-hidden rounded-2xl border border-primary/25 bg-primary/8 p-5 sm:p-7">
             <div aria-hidden className="absolute inset-0 -z-10 bg-grid opacity-40" />
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <p className="text-xs font-medium tracking-[0.18em] text-primary uppercase">
-                    At the machine
+                    In the Conserve Site
                 </p>
                 {copy.live ? (
                     <Badge variant="live">Live</Badge>
@@ -139,35 +173,46 @@ export function MissionPanel() {
                 </p>
             ) : null}
 
-            {session.status === "connected" || session.status === "measuring" ? (
+            {atSite ? (
                 <p className="mt-4 flex items-center gap-2 text-sm">
                     <LiveDot />
                     {session.deviceExternalId ?? "Conserve machine"}
-                    {session.collectionPointName
-                        ? ` · ${session.collectionPointName}`
-                        : ""}
+                    {siteLabel(session) ? ` · ${siteLabel(session)}` : ""}
                 </p>
             ) : null}
 
             {session.status === "completed" ? (
-                <div className="mt-6">
-                    <p className="text-sm text-muted-foreground">
-                        {formatKg(session.weightKg)} {session.materialName ?? "plastic"}
-                    </p>
+                <div className="mt-6 space-y-3">
+                    {fractions.length > 1 ? (
+                        <ul className="space-y-1 text-sm text-muted-foreground">
+                            {fractions.map((line) => (
+                                <li key={line.materialSlug}>
+                                    {formatKg(line.weightKg)} {line.materialName}
+                                    {" · "}
+                                    +{formatPoints(cpAmount(line))} CP
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            {formatKg(session.weightKg)}{" "}
+                            {session.materialName ?? "recyclables"}
+                        </p>
+                    )}
                     <p className="tnum mt-1 font-display text-3xl text-primary">
-                        +{formatPoints(session.greenPoints)} GP
+                        +{formatPoints(points)} CP
                     </p>
                 </div>
             ) : null}
 
-            <ol className="mt-6 flex gap-6 text-xs text-muted-foreground">
+            <ol className="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-muted-foreground">
                 {PHASES.map((phase, index) => (
                     <li
                         key={phase}
                         className={
                             index <= copy.phase
-                                ? "font-medium text-foreground"
-                                : undefined
+                                ? "whitespace-nowrap font-medium text-foreground"
+                                : "whitespace-nowrap"
                         }
                     >
                         {phase}
@@ -218,7 +263,7 @@ export function MissionPanel() {
                                     {
                                         method: "POST",
                                         body: JSON.stringify({}),
-                                        fallback: "Couldn't get a code",
+                                        fallback: "Couldn't start recycling",
                                     }
                                 )
                                 setSession(next)
@@ -226,14 +271,14 @@ export function MissionPanel() {
                                 push(
                                     error instanceof Error
                                         ? error.message
-                                        : "Couldn't get a code",
+                                        : "Couldn't start recycling",
                                     "danger"
                                 )
                             }
                             setBusy(false)
                         }}
                     >
-                        {busy ? "Getting a code…" : "Get another code"}
+                        {busy ? "Starting…" : "Start recycling"}
                     </Button>
                 )}
                 {session.status === "completed" ? (

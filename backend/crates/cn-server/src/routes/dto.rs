@@ -1,9 +1,9 @@
 use chrono::{DateTime, Utc};
-use cn_domain::{DeviceHealth, kg_from_grams};
+use cn_domain::{DeviceHealth, conserve_site_label, kg_from_grams};
 use serde::Serialize;
 
 use crate::data::collection_points::{CollectionPointRecord, InventoryRow};
-use crate::data::deposits::{DepositRecord, LedgerEntry};
+use crate::data::deposits::{DepositFractionRecord, DepositRecord, LedgerEntry};
 use crate::data::devices::{BinState, DeviceRecord};
 use crate::data::pickups::PickupRecord;
 
@@ -17,6 +17,7 @@ pub struct UserResponse {
     pub email_verified: bool,
     pub created_at: DateTime<Utc>,
     pub green_points_balance: i64,
+    pub conserve_points_balance: i64,
     pub naira_value: i64,
     pub deposit_count: i64,
     pub recycled_kg: f64,
@@ -52,6 +53,8 @@ pub struct CollectionPointResponse {
     pub organisation_id: String,
     pub organisation_name: String,
     pub name: String,
+    pub site_name: String,
+    pub collection_point_name: String,
     pub slug: String,
     pub address: String,
     pub description: Option<String>,
@@ -82,6 +85,7 @@ pub struct DepositResponse {
     pub user_id: String,
     pub collection_point_id: String,
     pub collection_point_name: String,
+    pub site_name: String,
     pub organisation_id: String,
     pub material_id: String,
     pub material_name: String,
@@ -90,11 +94,27 @@ pub struct DepositResponse {
     pub weight_kg: Option<f64>,
     pub price_per_kg_naira: Option<i64>,
     pub green_points: Option<i64>,
+    pub conserve_points: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub estimated_green_points: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub estimated_conserve_points: Option<i64>,
+    pub fractions: Vec<DepositFractionResponse>,
     pub created_at: DateTime<Utc>,
     pub measured_at: Option<DateTime<Utc>>,
     pub confirmed_at: Option<DateTime<Utc>>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DepositFractionResponse {
+    pub material_id: String,
+    pub material_name: String,
+    pub material_slug: String,
+    pub weight_kg: f64,
+    pub price_per_kg_naira: i64,
+    pub green_points: i64,
+    pub conserve_points: i64,
 }
 
 #[derive(Serialize)]
@@ -115,6 +135,7 @@ pub struct DeviceResponse {
     pub organisation_id: String,
     pub collection_point_id: Option<String>,
     pub collection_point_name: Option<String>,
+    pub site_name: Option<String>,
     pub external_id: String,
     pub device_type: String,
     pub status: String,
@@ -144,6 +165,7 @@ pub struct PickupResponse {
     pub organisation_id: String,
     pub collection_point_id: String,
     pub collection_point_name: String,
+    pub site_name: String,
     pub material_id: String,
     pub material_name: String,
     pub material_slug: String,
@@ -163,6 +185,7 @@ pub struct OrganisationOverview {
     pub organisation_id: String,
     pub name: String,
     pub collection_points: i64,
+    pub sites: i64,
     pub devices_online: i64,
     pub devices_total: i64,
     pub material_collected_kg: f64,
@@ -191,6 +214,8 @@ pub fn point_dto(
         organisation_id: point.organisation_id.to_string(),
         organisation_name: point.organisation_name.clone(),
         name: point.name.clone(),
+        site_name: conserve_site_label(&point.name),
+        collection_point_name: point.name.clone(),
         slug: point.slug.clone(),
         address: point.address.clone(),
         description: point.description.clone(),
@@ -209,6 +234,7 @@ pub fn deposit_dto(deposit: &DepositRecord, estimated: Option<i64>) -> DepositRe
         user_id: deposit.user_id.to_string(),
         collection_point_id: deposit.collection_point_id.to_string(),
         collection_point_name: deposit.collection_point_name.clone(),
+        site_name: conserve_site_label(&deposit.collection_point_name),
         organisation_id: deposit.organisation_id.to_string(),
         material_id: deposit.material_id.to_string(),
         material_name: deposit.material_name.clone(),
@@ -217,10 +243,25 @@ pub fn deposit_dto(deposit: &DepositRecord, estimated: Option<i64>) -> DepositRe
         weight_kg: deposit.weight_grams.map(kg_from_grams),
         price_per_kg_naira: deposit.price_per_kg_naira,
         green_points: deposit.green_points,
+        conserve_points: deposit.green_points,
         estimated_green_points: estimated,
+        estimated_conserve_points: estimated,
+        fractions: deposit.fractions.iter().map(fraction_dto).collect(),
         created_at: deposit.created_at,
         measured_at: deposit.measured_at,
         confirmed_at: deposit.confirmed_at,
+    }
+}
+
+fn fraction_dto(line: &DepositFractionRecord) -> DepositFractionResponse {
+    DepositFractionResponse {
+        material_id: line.material_id.to_string(),
+        material_name: line.material_name.clone(),
+        material_slug: line.material_slug.clone(),
+        weight_kg: kg_from_grams(line.weight_grams),
+        price_per_kg_naira: line.price_per_kg_naira,
+        green_points: line.green_points,
+        conserve_points: line.green_points,
     }
 }
 
@@ -242,6 +283,10 @@ pub fn device_dto(device: &DeviceRecord, bins: Vec<BinState>, now: DateTime<Utc>
         organisation_id: device.organisation_id.to_string(),
         collection_point_id: device.collection_point_id.map(|id| id.to_string()),
         collection_point_name: device.collection_point_name.clone(),
+        site_name: device
+            .collection_point_name
+            .as_deref()
+            .map(conserve_site_label),
         external_id: device.external_id.clone(),
         device_type: device.device_type.clone(),
         status: device.status.clone(),
@@ -273,6 +318,7 @@ pub fn pickup_dto(pickup: &PickupRecord) -> PickupResponse {
         organisation_id: pickup.organisation_id.to_string(),
         collection_point_id: pickup.collection_point_id.to_string(),
         collection_point_name: pickup.collection_point_name.clone(),
+        site_name: conserve_site_label(&pickup.collection_point_name),
         material_id: pickup.material_id.to_string(),
         material_name: pickup.material_name.clone(),
         material_slug: pickup.material_slug.clone(),

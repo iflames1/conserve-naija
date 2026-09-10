@@ -12,13 +12,13 @@ import { useSessionLoading, useSessionUser } from "@/stores/session"
 
 const PUBLIC_LINKS = [
     { href: "/how-it-works", label: "How it works" },
-    { href: "/explore", label: "Machines" },
+    { href: "/explore", label: "Explore" },
     { href: "/about", label: "About" },
 ]
 
 const CITIZEN_LINKS = [
     { href: "/", label: "Home" },
-    { href: "/explore", label: "Machines" },
+    { href: "/explore", label: "Explore" },
     { href: "/profile", label: "Profile" },
 ]
 

@@ -98,8 +98,9 @@ async fn my_rewards(
         .ok_or(AppError::NotFound("user"))?;
     Ok(Json(serde_json::json!({
         "greenPointsBalance": user.green_points_balance,
+        "conservePointsBalance": user.green_points_balance,
         "nairaValue": user.green_points_balance,
-        "conversion": "1 Green Point = ₦1"
+        "conversion": "1 Conserve Point = ₦1"
     })))
 }
 
@@ -153,6 +154,7 @@ async fn json_user(
         email_verified: user.email_verified,
         created_at: user.created_at,
         green_points_balance: user.green_points_balance,
+        conserve_points_balance: user.green_points_balance,
         naira_value: user.green_points_balance,
         deposit_count,
         recycled_kg: cn_domain::kg_from_grams(recycled_grams),

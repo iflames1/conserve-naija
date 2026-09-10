@@ -1,7 +1,7 @@
-//! Green Point reward math. 1 Green Point = ₦1.
+//! Conserve Point reward math. 1 Conserve Point (CP) = ₦1.
 //!
 //! Weight is stored in grams. Price is ₦ per kilogram at the time of confirmation.
-//! `2_500g * ₦100/kg / 1000 = 250` Green Points.
+//! `2_500g * ₦100/kg / 1000 = 250` CP.
 
 use thiserror::Error;
 
@@ -20,7 +20,15 @@ pub enum RewardError {
     InvalidPrice,
 }
 
-/// Authoritative reward for a confirmed deposit.
+/// Authoritative CP reward for a confirmed material fraction.
+pub fn conserve_points_for_deposit(
+    weight_grams: i64,
+    price_per_kg_naira: i64,
+) -> Result<i64, RewardError> {
+    green_points_for_deposit(weight_grams, price_per_kg_naira)
+}
+
+/// Same as [`conserve_points_for_deposit`]. Kept for existing call sites.
 pub fn green_points_for_deposit(
     weight_grams: i64,
     price_per_kg_naira: i64,

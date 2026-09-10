@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Link from "next/link"
 import { useQuery } from "@tanstack/react-query"
 
 import { browserApi } from "@/lib/api/browser"
@@ -37,10 +38,10 @@ export default function OrgPointsPage() {
 
     return (
         <div>
-            <h1 className="text-4xl font-semibold tracking-tight">Collection points</h1>
+            <h1 className="text-4xl font-semibold tracking-tight">Sites</h1>
             <p className="mt-2 text-muted-foreground">
-                A site that hosts one or more Conserve machines. People walk up
-                to the machine. They don&apos;t pick this in the app first.
+                A Conserve Site hosts one or more machines. People walk up.
+                They don&apos;t pick this in the app first.
             </p>
             <Card className="mt-8">
                 <CardContent className="p-5">
@@ -53,7 +54,7 @@ export default function OrgPointsPage() {
                                     await browserApi("/organisation/collection-points", {
                                         method: "POST",
                                         body: JSON.stringify({ name, address }),
-                                        fallback: "Failed to create collection point",
+                                        fallback: "Failed to create site",
                                     })
                                     setName("")
                                     setAddress("")
@@ -62,7 +63,7 @@ export default function OrgPointsPage() {
                                     push(
                                         error instanceof Error
                                             ? error.message
-                                            : "Failed to create collection point",
+                                            : "Failed to create site",
                                         "danger"
                                     )
                                 }
@@ -75,7 +76,7 @@ export default function OrgPointsPage() {
                                 id="name"
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
-                                placeholder="Surulere Collection Point"
+                                placeholder="Surulere"
                             />
                         </div>
                         <div className="grid gap-2">
@@ -111,7 +112,12 @@ export default function OrgPointsPage() {
                         <Card key={point.id}>
                             <CardContent className="p-5">
                                 <h2 className="text-xl font-semibold tracking-tight">
-                                    {point.name}
+                                    <Link
+                                        href={`/organisation/points/${point.id}`}
+                                        className="hover:underline"
+                                    >
+                                        {point.name}
+                                    </Link>
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">{point.address}</p>
                                 <Progress className="mt-4" value={percent} />

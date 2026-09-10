@@ -12,7 +12,7 @@ use crate::device_auth::AuthDevice;
 use crate::error::{AppError, AppResult};
 use crate::routes::access::parse_uuid;
 use crate::routes::dto::device_dto;
-use crate::services::sessions::{SessionService, machine_session_view};
+use crate::services::sessions::{SessionService, WeightFraction, machine_session_view};
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -57,8 +57,24 @@ struct ClaimBody {
 #[serde(rename_all = "camelCase")]
 struct SessionMeasurementBody {
     material: Option<String>,
+    #[serde(default, alias = "weightKg", alias = "weight_kg")]
+    weight_kg: Option<f64>,
+    #[serde(default)]
+    fractions: Option<Vec<MeasurementFractionBody>>,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MeasurementFractionBody {
+    material: String,
     #[serde(alias = "weightKg", alias = "weight_kg")]
     weight_kg: f64,
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SessionProgressBody {
+    stage: String,
 }
 
 pub fn router() -> Router<AppState> {
@@ -67,6 +83,10 @@ pub fn router() -> Router<AppState> {
         .route("/iot/devices/me/heartbeat", post(heartbeat))
         .route("/iot/devices/me/telemetry", post(telemetry))
         .route("/iot/devices/me/sessions/claim", post(claim_session))
+        .route(
+            "/iot/devices/me/sessions/{id}/progress",
+            post(session_progress),
+        )
         .route(
             "/iot/devices/me/sessions/{id}/measurement",
             post(session_measurement),
@@ -151,6 +171,27 @@ async fn claim_session(
     Ok(Json(machine_session_view(&session)))
 }
 
+async fn session_progress(
+    State(state): State<AppState>,
+    device: AuthDevice,
+    Path(id): Path<String>,
+    Json(body): Json<SessionProgressBody>,
+) -> AppResult<Json<Value>> {
+    PgDeviceRepo::new(state.db.clone())
+        .touch_heartbeat(device.id(), None, None, None)
+        .await?;
+    let stage = body.stage.trim().to_lowercase();
+    if stage != "sorting" {
+        return Err(AppError::BadRequest(
+            "unknown progress stage; use sorting".into(),
+        ));
+    }
+    let session = SessionService::new(state.db.clone(), state.realtime.clone())
+        .mark_sorting(&device.device, parse_uuid(&id, "session")?.into())
+        .await?;
+    Ok(Json(machine_session_view(&session)))
+}
+
 async fn session_measurement(
     State(state): State<AppState>,
     device: AuthDevice,
@@ -160,19 +201,45 @@ async fn session_measurement(
     PgDeviceRepo::new(state.db.clone())
         .touch_heartbeat(device.id(), None, None, None)
         .await?;
+    let fractions = measurement_fractions(&body)?;
+    let session = SessionService::new(state.db.clone(), state.realtime.clone())
+        .measure_fractions(
+            &device.device,
+            parse_uuid(&id, "session")?.into(),
+            fractions,
+        )
+        .await?;
+    Ok(Json(machine_session_view(&session)))
+}
+
+fn measurement_fractions(body: &SessionMeasurementBody) -> AppResult<Vec<WeightFraction>> {
+    if let Some(fractions) = &body.fractions {
+        let lines: Vec<WeightFraction> = fractions
+            .iter()
+            .map(|line| WeightFraction {
+                material_slug: line.material.trim().to_owned(),
+                weight_kg: line.weight_kg,
+            })
+            .filter(|line| !line.material_slug.is_empty())
+            .collect();
+        if lines.is_empty() {
+            return Err(AppError::BadRequest(
+                "deposit has no material fractions".into(),
+            ));
+        }
+        return Ok(lines);
+    }
     let material = body
         .material
         .as_deref()
         .map(str::trim)
         .filter(|s| !s.is_empty())
-        .unwrap_or("plastic");
-    let session = SessionService::new(state.db.clone(), state.realtime.clone())
-        .measure(
-            &device.device,
-            parse_uuid(&id, "session")?.into(),
-            material,
-            body.weight_kg,
-        )
-        .await?;
-    Ok(Json(machine_session_view(&session)))
+        .ok_or_else(|| AppError::BadRequest("material is required".into()))?;
+    let weight_kg = body
+        .weight_kg
+        .ok_or_else(|| AppError::BadRequest("weightKg is required".into()))?;
+    Ok(vec![WeightFraction {
+        material_slug: material.to_owned(),
+        weight_kg,
+    }])
 }

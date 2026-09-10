@@ -7,7 +7,7 @@ import { RiRecycleLine } from "@remixicon/react"
 import { ActivityRowsSkeleton } from "@/components/common/page-skeleton"
 import { ButtonLink, EmptyState } from "@/components/ui"
 import type { Deposit } from "@/lib/api/types"
-import { cn, formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
+import { cn, cpAmount, depositFractions, formatDepositMaterials, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
 
 export function ActivityHistory({
     deposits,
@@ -35,7 +35,7 @@ export function ActivityHistory({
                 description="First drop shows up after a machine weighs it."
                 action={
                     <ButtonLink href="/" variant="primary" size="sm">
-                        Get a code
+                        Start recycling
                     </ButtonLink>
                 }
             />
@@ -44,30 +44,35 @@ export function ActivityHistory({
 
     return (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
-            {rows.map((deposit) => (
+            {rows.map((deposit) => {
+                const lines = depositFractions(deposit)
+                const mixed = lines.length > 1
+                return (
                 <li key={deposit.id}>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                         <span className="tnum grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-xs text-primary">
-                            {(deposit.materialName ?? "?").slice(0, 1).toUpperCase()}
+                            {mixed
+                                ? "Mix"
+                                : (lines[0]?.materialName ?? "?").slice(0, 1).toUpperCase()}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                                {formatKg(deposit.weightKg)} {deposit.materialName}
+                            <p className="text-sm font-medium">
+                                {formatDepositMaterials(deposit)}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
-                                {deposit.collectionPointName}
+                                {siteLabel(deposit)}
                             </p>
                         </div>
                         <div className="shrink-0 text-right">
                             <p
                                 className={cn(
                                     "tnum font-display text-sm",
-                                    (deposit.greenPoints ?? 0) > 0
+                                    cpAmount(deposit) > 0
                                         ? "text-primary"
                                         : "text-muted-foreground"
                                 )}
                             >
-                                +{formatPoints(deposit.greenPoints)} GP
+                                +{formatPoints(cpAmount(deposit))} CP
                             </p>
                             <p className="text-[11px] text-muted-foreground">
                                 {formatRelativeTime(
@@ -77,7 +82,8 @@ export function ActivityHistory({
                         </div>
                     </div>
                 </li>
-            ))}
+                )
+            })}
         </ul>
     )
 }

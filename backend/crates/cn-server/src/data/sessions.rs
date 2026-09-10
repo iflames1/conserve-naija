@@ -30,6 +30,7 @@ pub struct SessionRecord {
     pub created_at: DateTime<Utc>,
     pub weight_grams: Option<i64>,
     pub green_points: Option<i64>,
+    pub fractions: Vec<crate::data::deposits::DepositFractionRecord>,
 }
 
 #[derive(sqlx::FromRow)]
@@ -130,7 +131,7 @@ impl PgSessionRepo {
             r#"
             UPDATE recycling_sessions
             SET status = 'expired', updated_at = now()
-            WHERE status IN ('waiting_for_machine', 'connected', 'measuring')
+            WHERE status IN ('waiting_for_machine', 'connected', 'sorting', 'measuring')
               AND expires_at < now()
             "#,
         )
@@ -146,18 +147,51 @@ impl PgSessionRepo {
             .fetch_optional(&self.pool)
             .await
             .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_session).transpose()
+        self.from_row(row).await
+    }
+
+    async fn from_row(&self, row: Option<SessionRow>) -> AppResult<Option<SessionRecord>> {
+        let Some(row) = row else {
+            return Ok(None);
+        };
+        let mut session = into_session(row)?;
+        if let Some(deposit_id) = session.deposit_id {
+            session.fractions = crate::data::deposits::PgDepositRepo::new(self.pool.clone())
+                .list_fractions(deposit_id)
+                .await?;
+            if session.fractions.is_empty()
+                && let (Some(material_id), Some(name), Some(slug), Some(grams), Some(points)) = (
+                    session.material_id,
+                    session.material_name.clone(),
+                    session.material_slug.clone(),
+                    session.weight_grams,
+                    session.green_points,
+                )
+            {
+                session.fractions.push(
+                    crate::data::deposits::DepositFractionRecord {
+                        material_id,
+                        material_name: name,
+                        material_slug: slug,
+                        weight_grams: grams,
+                        price_per_kg_naira: 0,
+                        green_points: points,
+                    },
+                );
+            }
+        }
+        Ok(Some(session))
     }
 
     pub async fn get_open_by_code(&self, code: &str) -> AppResult<Option<SessionRecord>> {
         let row = sqlx::query_as::<_, SessionRow>(sqlx::AssertSqlSafe(session_select(
-            "s.code = $1 AND s.status IN ('waiting_for_machine', 'connected', 'measuring', 'processing')",
+            "s.code = $1 AND s.status IN ('waiting_for_machine', 'connected', 'sorting', 'measuring', 'processing')",
         )))
         .bind(code)
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_session).transpose()
+        self.from_row(row).await
     }
 
     pub async fn latest_by_code(&self, code: &str) -> AppResult<Option<SessionRecord>> {
@@ -168,31 +202,31 @@ impl PgSessionRepo {
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_session).transpose()
+        self.from_row(row).await
     }
 
     pub async fn active_for_user(&self, user_id: UserId) -> AppResult<Option<SessionRecord>> {
         let row = sqlx::query_as::<_, SessionRow>(sqlx::AssertSqlSafe(session_select(
-            "s.user_id = $1 AND s.status IN ('waiting_for_machine', 'connected', 'measuring', 'processing')
+            "s.user_id = $1 AND s.status IN ('waiting_for_machine', 'connected', 'sorting', 'measuring', 'processing')
              ORDER BY s.created_at DESC LIMIT 1",
         )))
         .bind(user_id.as_uuid())
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_session).transpose()
+        self.from_row(row).await
     }
 
     pub async fn open_for_device(&self, device_id: DeviceId) -> AppResult<Option<SessionRecord>> {
         let row = sqlx::query_as::<_, SessionRow>(sqlx::AssertSqlSafe(session_select(
-            "s.device_id = $1 AND s.status IN ('connected', 'measuring', 'processing')
+            "s.device_id = $1 AND s.status IN ('connected', 'sorting', 'measuring', 'processing')
              ORDER BY s.created_at DESC LIMIT 1",
         )))
         .bind(device_id.as_uuid())
         .fetch_optional(&self.pool)
         .await
         .map_err(|err| AppError::Internal(err.into()))?;
-        row.map(into_session).transpose()
+        self.from_row(row).await
     }
 
     pub async fn claim(
@@ -320,5 +354,6 @@ fn into_session(row: SessionRow) -> AppResult<SessionRecord> {
         created_at: row.created_at,
         weight_grams: row.weight_grams,
         green_points: row.green_points,
+        fractions: Vec::new(),
     })
 }

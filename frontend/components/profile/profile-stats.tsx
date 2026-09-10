@@ -6,7 +6,7 @@ import {
 
 import { Stat } from "@/components/ui"
 import type { AppUser } from "@/lib/api/types"
-import { formatKg, formatNaira, formatPoints } from "@/lib/utils"
+import { formatKg, formatNaira, formatPoints, cpBalance } from "@/lib/utils"
 
 export function ProfileStats({ user }: { user: AppUser }) {
     return (
@@ -25,8 +25,8 @@ export function ProfileStats({ user }: { user: AppUser }) {
                 icon={<RiWallet3Line />}
                 label="Wallet"
                 tone="success"
-                value={`${formatPoints(user.greenPointsBalance)} GP`}
-                hint={`${formatNaira(user.nairaValue)} · 1 GP = ₦1`}
+                value={`${formatPoints(cpBalance(user))} CP`}
+                hint={`${formatNaira(user.nairaValue)} · 1 CP = ₦1`}
                 className="col-span-2 sm:col-span-1"
             />
         </div>

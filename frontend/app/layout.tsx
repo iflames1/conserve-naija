@@ -15,7 +15,7 @@ export const metadata: Metadata = {
         default: "Conserve Naija",
         template: "%s · Conserve Naija",
     },
-    description: "Walk up to a Conserve machine, turn in your plastic, and get paid. 1 GP = ₦1.",
+    description: "Walk up to Conserve Site — Yaba, turn in mixed waste, and get paid. 1 CP = ₦1.",
 }
 
 export const viewport: Viewport = {

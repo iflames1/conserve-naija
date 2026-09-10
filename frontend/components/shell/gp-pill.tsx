@@ -1,7 +1,7 @@
 "use client"
 
 import { ButtonLink, Skeleton } from "@/components/ui"
-import { formatPoints } from "@/lib/utils"
+import { cpBalance, formatPoints } from "@/lib/utils"
 import { useSessionLoading, useSessionUser } from "@/stores/session"
 
 export function GpPill() {
@@ -20,7 +20,7 @@ export function GpPill() {
             className="h-9 rounded-full border border-border/70 bg-card/60 px-3.5 text-sm hover:border-border-strong hover:bg-card/60"
         >
             <span className="tnum font-medium">
-                {formatPoints(user.greenPointsBalance)} GP
+                {formatPoints(cpBalance(user))} CP
             </span>
         </ButtonLink>
     )

@@ -6,6 +6,7 @@ export type AppUser = {
     emailVerified: boolean
     createdAt?: string
     greenPointsBalance: number
+    conservePointsBalance?: number
     nairaValue: number
     depositCount: number
     recycledKg: number
@@ -44,6 +45,8 @@ export type CollectionPoint = {
     organisationId: string
     organisationName: string
     name: string
+    siteName?: string
+    collectionPointName?: string
     slug: string
     address: string
     description?: string | null
@@ -60,6 +63,7 @@ export type Deposit = {
     userId: string
     collectionPointId: string
     collectionPointName: string
+    siteName?: string
     organisationId: string
     materialId: string
     materialName: string
@@ -68,10 +72,23 @@ export type Deposit = {
     weightKg?: number | null
     pricePerKgNaira?: number | null
     greenPoints?: number | null
+    conservePoints?: number | null
     estimatedGreenPoints?: number | null
+    estimatedConservePoints?: number | null
+    fractions?: DepositFraction[]
     createdAt: string
     measuredAt?: string | null
     confirmedAt?: string | null
+}
+
+export type DepositFraction = {
+    materialId: string
+    materialName: string
+    materialSlug: string
+    weightKg: number
+    pricePerKgNaira: number
+    greenPoints: number
+    conservePoints?: number
 }
 
 export type LedgerEntry = {
@@ -97,6 +114,7 @@ export type Device = {
     organisationId: string
     collectionPointId?: string | null
     collectionPointName?: string | null
+    siteName?: string | null
     externalId: string
     deviceType: string
     status: string
@@ -113,6 +131,7 @@ export type Pickup = {
     organisationId: string
     collectionPointId: string
     collectionPointName: string
+    siteName?: string
     materialId: string
     materialName: string
     materialSlug: string
@@ -130,6 +149,7 @@ export type OrganisationOverview = {
     organisationId: string
     name: string
     collectionPoints: number
+    sites?: number
     devicesOnline: number
     devicesTotal: number
     materialCollectedKg: number
@@ -138,6 +158,7 @@ export type OrganisationOverview = {
 
 export type RewardsSummary = {
     greenPointsBalance: number
+    conservePointsBalance?: number
     nairaValue: number
     conversion: string
 }
@@ -148,6 +169,7 @@ export type RecyclingSession = {
     status:
         | "waiting_for_machine"
         | "connected"
+        | "sorting"
         | "measuring"
         | "processing"
         | "completed"
@@ -156,6 +178,7 @@ export type RecyclingSession = {
         | "failed"
     deviceExternalId?: string | null
     collectionPointName?: string | null
+    siteName?: string | null
     materialName?: string | null
     materialSlug?: string | null
     depositId?: string | null
@@ -166,6 +189,8 @@ export type RecyclingSession = {
     createdAt: string
     weightKg?: number | null
     greenPoints?: number | null
+    conservePoints?: number | null
+    fractions?: DepositFraction[]
 }
 
 export type SessionStatus = RecyclingSession["status"]

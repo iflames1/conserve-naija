@@ -4,6 +4,12 @@ import { create } from "zustand"
 
 import type { AppUser } from "@/lib/api/types"
 
+export type UserStatsPatch = {
+    conservePointsBalance?: number
+    depositCount?: number
+    recycledKg?: number
+}
+
 type SessionState = {
     user: AppUser | null
     loading: boolean
@@ -11,6 +17,7 @@ type SessionState = {
         setUser: (user: AppUser | null) => void
         setLoading: (loading: boolean) => void
         patchBalance: (greenPointsBalance: number) => void
+        patchStats: (patch: UserStatsPatch) => void
     }
 }
 
@@ -21,17 +28,32 @@ export const useSessionStore = create<SessionState>((set) => ({
         setUser: (user) => set({ user }),
         setLoading: (loading) => set({ loading }),
         patchBalance: (greenPointsBalance) =>
-            set((state) =>
-                state.user
-                    ? {
-                          user: {
-                              ...state.user,
-                              greenPointsBalance,
-                              nairaValue: greenPointsBalance,
-                          },
-                      }
-                    : {}
-            ),
+            useSessionStore.getState().actions.patchStats({
+                conservePointsBalance: greenPointsBalance,
+            }),
+        patchStats: (patch) =>
+            set((state) => {
+                if (!state.user) return {}
+                const balance = patch.conservePointsBalance
+                return {
+                    user: {
+                        ...state.user,
+                        ...(typeof balance === "number"
+                            ? {
+                                  greenPointsBalance: balance,
+                                  conservePointsBalance: balance,
+                                  nairaValue: balance,
+                              }
+                            : {}),
+                        ...(typeof patch.depositCount === "number"
+                            ? { depositCount: patch.depositCount }
+                            : {}),
+                        ...(typeof patch.recycledKg === "number"
+                            ? { recycledKg: patch.recycledKg }
+                            : {}),
+                    },
+                }
+            }),
     },
 }))
 

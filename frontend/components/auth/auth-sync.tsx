@@ -9,12 +9,16 @@ import { authClient } from "@/lib/auth/client"
 import { isVerificationDisabled } from "@/lib/auth/flags"
 import { userFromAuthSession } from "@/lib/auth/session-user"
 import { clearAccessTokenCache } from "@/lib/auth/browser-token"
+import { useActivityActions } from "@/stores/activity"
+import { useLiveActions } from "@/stores/live"
 import { useSessionActions, useSessionStore } from "@/stores/session"
 
 export function AuthSync() {
     const queryClient = useQueryClient()
     const { data: session, isPending } = authClient.useSession()
     const { setUser, setLoading } = useSessionActions()
+    const { clear: clearActivity } = useActivityActions()
+    const { clearSession } = useLiveActions()
     const id = session?.user?.id ?? null
     const email = session?.user?.email ?? null
     const name = session?.user?.name ?? null
@@ -26,6 +30,8 @@ export function AuthSync() {
         if (!id || !email) {
             if (useSessionStore.getState().user) queryClient.clear()
             setUser(null)
+            clearActivity()
+            clearSession()
             setLoading(false)
             clearAccessTokenCache()
             return
@@ -43,7 +49,19 @@ export function AuthSync() {
             )
         }
         setLoading(false)
-    }, [isPending, id, email, name, image, emailVerified, queryClient, setLoading, setUser])
+    }, [
+        isPending,
+        id,
+        email,
+        name,
+        image,
+        emailVerified,
+        queryClient,
+        setLoading,
+        setUser,
+        clearActivity,
+        clearSession,
+    ])
 
     React.useEffect(() => {
         if (isPending || !id || !email) return
@@ -62,7 +80,32 @@ export function AuthSync() {
                         emailVerified: emailVerified || isVerificationDisabled(),
                     }),
                 })
-                if (!cancelled) setUser(synced)
+                if (cancelled) return
+                const current = useSessionStore.getState().user
+                if (current && current.id === synced.id) {
+                    setUser({
+                        ...synced,
+                        greenPointsBalance: Math.max(
+                            current.greenPointsBalance,
+                            synced.greenPointsBalance
+                        ),
+                        conservePointsBalance: Math.max(
+                            current.conservePointsBalance ?? current.greenPointsBalance,
+                            synced.conservePointsBalance ?? synced.greenPointsBalance
+                        ),
+                        nairaValue: Math.max(current.nairaValue, synced.nairaValue),
+                        depositCount: Math.max(
+                            current.depositCount ?? 0,
+                            synced.depositCount ?? 0
+                        ),
+                        recycledKg: Math.max(
+                            current.recycledKg ?? 0,
+                            synced.recycledKg ?? 0
+                        ),
+                    })
+                    return
+                }
+                setUser(synced)
             } catch (error) {
                 console.error("Failed to sync app user", error)
             }

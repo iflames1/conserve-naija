@@ -12,9 +12,56 @@ export function formatKg(value: number | null | undefined): string {
     })} kg`
 }
 
+export function depositFractions(deposit: {
+    fractions?: { materialName: string; weightKg: number }[] | null
+    materialName?: string | null
+    weightKg?: number | null
+}): { materialName: string; weightKg: number }[] {
+    const lines = (deposit.fractions ?? []).filter((line) => line.weightKg > 0)
+    if (lines.length) return lines
+    return [
+        {
+            materialName: deposit.materialName || "recyclables",
+            weightKg: deposit.weightKg ?? 0,
+        },
+    ]
+}
+
+export function formatDepositMaterials(deposit: {
+    fractions?: { materialName: string; weightKg: number }[] | null
+    materialName?: string | null
+    weightKg?: number | null
+}): string {
+    return depositFractions(deposit)
+        .map((line) => `${formatKg(line.weightKg)} ${line.materialName}`)
+        .join(" · ")
+}
+
 export function formatPoints(value: number | null | undefined): string {
     if (value == null || Number.isNaN(value)) return "0"
     return value.toLocaleString("en-NG")
+}
+
+export function cpBalance(user: {
+    conservePointsBalance?: number | null
+    greenPointsBalance: number
+}): number {
+    return user.conservePointsBalance ?? user.greenPointsBalance
+}
+
+export function cpAmount(row: {
+    conservePoints?: number | null
+    greenPoints?: number | null
+}): number {
+    return row.conservePoints ?? row.greenPoints ?? 0
+}
+
+export function siteLabel(row: {
+    siteName?: string | null
+    collectionPointName?: string | null
+    name?: string | null
+}): string {
+    return (row.siteName || row.collectionPointName || row.name || "").trim()
 }
 
 export function formatNaira(value: number | null | undefined): string {

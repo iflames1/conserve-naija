@@ -73,8 +73,8 @@ export default function MachinesPage() {
         <div>
             <h1 className="text-4xl font-semibold tracking-tight">Machines</h1>
             <p className="mt-2 text-muted-foreground">
-                Register a Conserve machine, attach it to a collection point, then
-                put that identity in Wokwi. We show the API key once.
+                Register a Conserve machine, attach it to a site, then put
+                that identity in Wokwi. We show the API key once.
             </p>
             <Card className="mt-8">
                 <CardContent className="p-5">
@@ -120,7 +120,7 @@ export default function MachinesPage() {
                             />
                         </div>
                         <div className="grid gap-2">
-                            <Label>Collection point</Label>
+                            <Label>Site</Label>
                             <Select
                                 value={collectionPointId || null}
                                 onValueChange={(value) =>
@@ -168,7 +168,9 @@ export default function MachinesPage() {
                             <div>
                                 <p className="font-medium">{device.externalId}</p>
                                 <p className="mt-1 text-xs text-muted-foreground">
-                                    {device.collectionPointName ?? "not attached"}
+                                    {device.siteName ??
+                                        device.collectionPointName ??
+                                        "not attached"}
                                     {device.lastSeenAt
                                         ? ` · last seen ${formatRelativeTime(device.lastSeenAt)}`
                                         : " · never seen"}
