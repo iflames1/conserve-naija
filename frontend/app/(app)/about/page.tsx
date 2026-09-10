@@ -12,13 +12,13 @@ export default function AboutPage() {
             </header>
             <div className="space-y-4 rounded-2xl border border-border/70 p-5 text-sm leading-relaxed text-muted-foreground surface-raised">
                 <p>
-                    Organisations run the machines and haul the material. Plastic
-                    is first. Paper, glass, metal, and e-waste can use the same
-                    machines when a site is ready for them.
+                    Organisations run the machines and haul the material.
+                    Plastic, paper, glass, and metal can share a site. The
+                    machine sorts mixed waste into fractions.
                 </p>
                 <p>
-                    One Green Point is ₦1. The machine weighs. Your phone holds
-                    the code and the wallet.
+                    One Conserve Point is ₦1. The machine weighs. Your phone
+                    holds the code and the wallet.
                 </p>
             </div>
         </PageContainer>

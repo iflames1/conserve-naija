@@ -81,6 +81,7 @@ pub fn router() -> Router<AppState> {
             "/organisation/collection-points",
             get(org_points).post(create_point),
         )
+        .route("/organisation/sites", get(org_points).post(create_point))
         .route("/organisation/devices", get(org_devices).post(register_device))
         .route("/organisation/devices/associate", post(associate_device))
         .route(
@@ -139,6 +140,7 @@ async fn overview(
         organisation_id: membership.organisation_id.to_string(),
         name: membership.name,
         collection_points: points.len() as i64,
+        sites: points.len() as i64,
         devices_online: online,
         devices_total: devices.len() as i64,
         material_collected_kg: kg_from_grams(collected),

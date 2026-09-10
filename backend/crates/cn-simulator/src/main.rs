@@ -45,8 +45,12 @@ async fn main() -> Result<()> {
             println!("claimed session {session_id}");
             let done = measure(&client, &api, &key, &session_id, &material, measure_kg).await?;
             println!(
-                "deposit complete gp={} weightKg={}",
-                done["greenPoints"], done["weightKg"]
+                "deposit complete cp={} weightKg={}",
+                done["conservePoints"]
+                    .as_i64()
+                    .or_else(|| done["greenPoints"].as_i64())
+                    .unwrap_or(0),
+                done["weightKg"]
             );
         }
         if oneshot {

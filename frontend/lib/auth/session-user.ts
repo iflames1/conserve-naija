@@ -16,6 +16,7 @@ export function userFromAuthSession(input: {
         avatarUrl: input.image,
         emailVerified: Boolean(input.emailVerified) || isVerificationDisabled(),
         greenPointsBalance: 0,
+        conservePointsBalance: 0,
         nairaValue: 0,
         depositCount: 0,
         recycledKg: 0,

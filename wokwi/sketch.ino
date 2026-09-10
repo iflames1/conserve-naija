@@ -6,11 +6,12 @@
  *   POST /iot/devices/me/heartbeat
  *   POST /iot/devices/me/telemetry
  *   POST /iot/devices/me/sessions/claim            { "code": "482731" }
- *   POST /iot/devices/me/sessions/{id}/measurement { "material": "plastic", "weightKg": 2.5 }
+ *   POST /iot/devices/me/sessions/{id}/progress    { "stage": "sorting" }
+ *   POST /iot/devices/me/sessions/{id}/measurement { "fractions": [...] }
  *
  * State machine:
- *   IDLE → ENTER_CODE → AUTHENTICATING → READY_FOR_DEPOSIT
- *        → MEASURING → PROCESSING → SUCCESS → RESET → IDLE
+ *   IDLE → ENTER_CODE → AUTHENTICATING → READY
+ *        → MEASURING → SORTING → PROCESSING → SUCCESS → RESET → IDLE
  */
 
 #include <WiFi.h>
@@ -22,12 +23,14 @@
 
 const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
-// Laptop (VS Code + Private IoT Gateway): http://host.wokwi.internal:8080
-// Public viewer / wokwi.com: HTTPS origin of cn-server, no trailing slash.
-const char* API_HOST = "https://conserve-naija-production.up.railway.app";
+// Laptop (VS Code + Private IoT Gateway). Public viewer / wokwi.com: Railway origin.
+#ifndef CN_API_HOST
+#define CN_API_HOST "http://host.wokwi.internal:8080"
+// #define CN_API_HOST "https://conserve-naija-production.up.railway.app"
+#endif
+const char* API_HOST = CN_API_HOST;
 const char* DEVICE_KEY = "cn-dev-yaba-device-key";
-const char* MATERIAL = "plastic";
-const char* FIRMWARE = "wokwi-0.3.6";
+const char* FIRMWARE = "wokwi-0.4.1";
 const uint32_t WIFI_RETRY_MS = 15000;
 const uint32_t HTTP_TIMEOUT_MS = 4000;
 const uint32_t TLS_HANDSHAKE_S = 10;
@@ -42,6 +45,7 @@ enum MachineState {
   ST_AUTHENTICATING,
   ST_READY,
   ST_MEASURING,
+  ST_SORTING,
   ST_PROCESSING,
   ST_SUCCESS,
   ST_ERROR,
@@ -78,21 +82,21 @@ String code;
 String sessionId;
 String lastError;
 float lastWeightKg = 0;
-int lastGreenPoints = 0;
+int lastConservePoints = 0;
 unsigned long stateEntered = 0;
 unsigned long lastHeartbeat = 0;
 
 void showCodeScreen(const String& shown) {
   lcd.clear();
   lcd.setCursor(0, 0);
-  lcd.print("YOUR CODE");
+  lcd.print("YOUR OTP");
   lcd.setCursor(0, 1);
   lcd.print(shown);
   lcd.setCursor(0, 2);
   lcd.print("C cancel ");
   lcd.write((uint8_t)0);
   lcd.print(" enter");
-  Serial.printf("[ENTER_CODE] YOUR CODE | %s | C cancel  ⏎ enter\n", shown.c_str());
+  Serial.printf("[ENTER_CODE] YOUR OTP | %s | C cancel  ⏎ enter\n", shown.c_str());
 }
 
 const char* stateName();
@@ -106,6 +110,10 @@ void show(const char* l0, const char* l1, const char* l2 = "", const char* l3 = 
   Serial.printf("[%s] %s | %s | %s | %s\n", stateName(), l0, l1, l2, l3);
 }
 
+void showWelcome() {
+  show("Welcome to", "Conserve Site Yaba", "CN-MACHINE-001", "Input Conserve OTP");
+}
+
 const char* stateName() {
   switch (state) {
     case ST_IDLE: return "IDLE";
@@ -113,6 +121,7 @@ const char* stateName() {
     case ST_AUTHENTICATING: return "AUTHENTICATING";
     case ST_READY: return "READY";
     case ST_MEASURING: return "MEASURING";
+    case ST_SORTING: return "SORTING";
     case ST_PROCESSING: return "PROCESSING";
     case ST_SUCCESS: return "SUCCESS";
     case ST_ERROR: return "ERROR";
@@ -128,7 +137,7 @@ void enter(MachineState next) {
     case ST_IDLE:
       code = "";
       sessionId = "";
-      show("CONSERVE NAIJA", "TURN IN PLASTIC", "Get a code first", "Type it here");
+      showWelcome();
       break;
     case ST_ENTER_CODE:
       showCodeScreen(code);
@@ -137,10 +146,13 @@ void enter(MachineState next) {
       show("CONNECTING...", "Please wait.", "", "");
       break;
     case ST_READY:
-      show("YOU'RE IN", "0.00 KG", "Put it on the scale", "Press WEIGH");
+      show("YOU'RE IN", "Conserve Site Yaba", "Dump mixed waste", "Press WEIGH");
       break;
     case ST_MEASURING:
       show("WEIGHING...", "", "Hold still", "");
+      break;
+    case ST_SORTING:
+      show("SORTING...", "Mixed waste", "Plastic Glass", "Paper Metal");
       break;
     case ST_PROCESSING:
       show("COUNTING IT UP", "Hang on.", "", "");
@@ -152,15 +164,26 @@ void enter(MachineState next) {
       show("CANNOT CONTINUE", lastError.c_str(), "Resetting...", "");
       break;
     case ST_RESET:
-      show("TURN IN PLASTIC", "Waiting for next", "person...", "");
+      showWelcome();
       break;
   }
 }
 
+bool jsonKeyAt(const String& body, int at) {
+  if (at <= 0) return true;
+  char prev = body[at - 1];
+  return prev == '{' || prev == ',' || prev == ' ' || prev == '\n' || prev == '\r' || prev == '\t';
+}
+
 String jsonGet(const String& body, const char* key) {
   String needle = String("\"") + key + "\":";
-  int at = body.indexOf(needle);
-  if (at < 0) return "";
+  int at = 0;
+  while (true) {
+    at = body.indexOf(needle, at);
+    if (at < 0) return "";
+    if (jsonKeyAt(body, at)) break;
+    at += 1;
+  }
   at += needle.length();
   while (at < (int)body.length() && (body[at] == ' ' || body[at] == '"')) {
     if (body[at] == '"') {
@@ -180,6 +203,7 @@ int postJson(const String& path, const String& body, String* response) {
   HTTPClient http;
   String url = String(API_HOST) + path;
   WiFiClientSecure tls;
+  WiFiClient plain;
   http.setConnectTimeout(HTTP_TIMEOUT_MS);
   http.setTimeout(HTTP_TIMEOUT_MS);
   if (url.startsWith("https://")) {
@@ -187,7 +211,7 @@ int postJson(const String& path, const String& body, String* response) {
     tls.setHandshakeTimeout(TLS_HANDSHAKE_S);
     http.begin(tls, url);
   } else {
-    http.begin(url);
+    http.begin(plain, url);
   }
   http.addHeader("Content-Type", "application/json");
   http.addHeader("Authorization", String("Device ") + DEVICE_KEY);
@@ -220,7 +244,19 @@ void heartbeat() {
 void telemetry(float binKg, int fill) {
   String body = "{\"location\":{\"latitude\":6.5095,\"longitude\":3.3711},\"bins\":[";
   body += "{\"material\":\"plastic\",\"weightKg\":";
-  body += String(binKg, 1);
+  body += String(binKg * 0.5f, 1);
+  body += ",\"fillPercent\":";
+  body += String(fill);
+  body += "},{\"material\":\"glass\",\"weightKg\":";
+  body += String(binKg * 0.25f, 1);
+  body += ",\"fillPercent\":";
+  body += String(fill);
+  body += "},{\"material\":\"paper\",\"weightKg\":";
+  body += String(binKg * 0.15f, 1);
+  body += ",\"fillPercent\":";
+  body += String(fill);
+  body += "},{\"material\":\"metal\",\"weightKg\":";
+  body += String(binKg * 0.10f, 1);
   body += ",\"fillPercent\":";
   body += String(fill);
   body += "}]}";
@@ -231,7 +267,6 @@ float readWeightKg() {
   int raw = analogRead(PIN_WEIGHT);
   if (raw < 0) raw = 0;
   if (raw > 4095) raw = 4095;
-  // Knob at rest = empty scale. Full turn = 5 kg.
   return (raw / 4095.0f) * 5.0f;
 }
 
@@ -245,6 +280,7 @@ void claimSession() {
     return;
   }
   sessionId = jsonGet(response, "sessionId");
+  if (sessionId.length() == 0) sessionId = jsonGet(response, "id");
   if (sessionId.length() == 0) {
     lastError = "NO CODE";
     enter(ST_ERROR);
@@ -253,10 +289,41 @@ void claimSession() {
   enter(ST_READY);
 }
 
-void submitMeasurement(float kg) {
+void appendFraction(String& body, bool& first, const char* material, float kg) {
+  if (kg < 0.05f) return;
+  if (!first) body += ",";
+  first = false;
+  body += "{\"material\":\"";
+  body += material;
+  body += "\",\"weightKg\":";
+  body += String(kg, 2);
+  body += "}";
+}
+
+void submitFractions(float kg) {
   lastWeightKg = kg;
+  String progressPath = String("/iot/devices/me/sessions/") + sessionId + "/progress";
+  postJson(progressPath, "{\"stage\":\"sorting\"}", nullptr);
+
+  float plastic = kg * 0.50f;
+  float glass = kg * 0.25f;
+  float paper = kg * 0.15f;
+  float metal = kg * 0.10f;
+
+  String body = "{\"fractions\":[";
+  bool first = true;
+  appendFraction(body, first, "plastic", plastic);
+  appendFraction(body, first, "glass", glass);
+  appendFraction(body, first, "paper", paper);
+  appendFraction(body, first, "metal", metal);
+  body += "]}";
+  if (first) {
+    lastError = "TOO LIGHT";
+    enter(ST_ERROR);
+    return;
+  }
+
   String path = String("/iot/devices/me/sessions/") + sessionId + "/measurement";
-  String body = String("{\"material\":\"") + MATERIAL + "\",\"weightKg\":" + String(kg, 2) + "}";
   String response;
   enter(ST_PROCESSING);
   int status = postJson(path, body, &response);
@@ -265,12 +332,14 @@ void submitMeasurement(float kg) {
     enter(ST_ERROR);
     return;
   }
-  lastGreenPoints = jsonGet(response, "greenPoints").toInt();
+  String cp = jsonGet(response, "conservePoints");
+  if (cp.length() == 0) cp = jsonGet(response, "greenPoints");
+  lastConservePoints = cp.toInt();
   lcd.clear();
-  lcd.setCursor(0, 0); lcd.print("DEPOSIT COMPLETE");
-  lcd.setCursor(0, 1); lcd.print(String(lastWeightKg, 2) + " KG");
-  lcd.setCursor(0, 2); lcd.print(String("+") + lastGreenPoints + " GP");
-  lcd.setCursor(0, 3); lcd.print("Thank you!");
+  lcd.setCursor(0, 0); lcd.print("THAT'S IN");
+  lcd.setCursor(0, 1); lcd.print(String(lastWeightKg, 2) + " KG MIXED");
+  lcd.setCursor(0, 2); lcd.print(String("+") + lastConservePoints + " CP");
+  lcd.setCursor(0, 3); lcd.print("Conserve Site Yaba");
   state = ST_SUCCESS;
   stateEntered = millis();
 }
@@ -282,7 +351,8 @@ void setup() {
   lcd.init();
   lcd.backlight();
   lcd.createChar(0, enterGlyph);
-  show("CONSERVE NAIJA", "Connecting WiFi", "", "");
+  Serial.printf("api %s\n", API_HOST);
+  show("Welcome to", "Connecting WiFi", "", "");
   WiFi.mode(WIFI_STA);
   // Scan for Wokwi-GUEST. Pinning channel 6 skips the scan and misses the
   // AP when the viewer/gateway is not on 6 (public viewer and VS Code).
@@ -338,9 +408,9 @@ void loop() {
   if (state == ST_READY) {
     float kg = readWeightKg();
     lcd.setCursor(0, 1);
-    lcd.print(String(kg, 2) + " KG          ");
+    lcd.print(String(kg, 2) + " KG mixed     ");
     lcd.setCursor(0, 2);
-    lcd.print(kg < 0.1f ? "Add material     " : "Turn the scale   ");
+    lcd.print(kg < 0.1f ? "Dump mixed waste " : "Turn the scale   ");
     if (digitalRead(PIN_WEIGH_BTN) == LOW && kg >= 0.1f) {
       lastWeightKg = kg;
       enter(ST_MEASURING);
@@ -349,10 +419,14 @@ void loop() {
 
   if (state == ST_MEASURING) {
     lcd.setCursor(0, 1);
-    lcd.print(String(lastWeightKg, 2) + " KG      ");
+    lcd.print(String(lastWeightKg, 2) + " KG mixed  ");
     if (now - stateEntered > 800) {
-      submitMeasurement(lastWeightKg);
+      enter(ST_SORTING);
     }
+  }
+
+  if (state == ST_SORTING && now - stateEntered > 1600) {
+    submitFractions(lastWeightKg);
   }
 
   if (state == ST_SUCCESS && now - stateEntered > 4000) {

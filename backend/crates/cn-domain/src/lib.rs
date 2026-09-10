@@ -41,6 +41,7 @@ impl UserRole {
     }
 }
 
+/// Physical location. Stored as `collection_points`; product name is Conserve Site.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum CollectionPointStatus {
@@ -77,6 +78,7 @@ impl CollectionPointStatus {
 pub enum RecyclingSessionStatus {
     WaitingForMachine,
     Connected,
+    Sorting,
     Measuring,
     Processing,
     Completed,
@@ -90,6 +92,7 @@ impl RecyclingSessionStatus {
         match self {
             Self::WaitingForMachine => "waiting_for_machine",
             Self::Connected => "connected",
+            Self::Sorting => "sorting",
             Self::Measuring => "measuring",
             Self::Processing => "processing",
             Self::Completed => "completed",
@@ -103,6 +106,7 @@ impl RecyclingSessionStatus {
         match value {
             "waiting_for_machine" => Some(Self::WaitingForMachine),
             "connected" => Some(Self::Connected),
+            "sorting" => Some(Self::Sorting),
             "measuring" => Some(Self::Measuring),
             "processing" => Some(Self::Processing),
             "completed" => Some(Self::Completed),
@@ -116,7 +120,11 @@ impl RecyclingSessionStatus {
     pub fn is_open(self) -> bool {
         matches!(
             self,
-            Self::WaitingForMachine | Self::Connected | Self::Measuring | Self::Processing
+            Self::WaitingForMachine
+                | Self::Connected
+                | Self::Sorting
+                | Self::Measuring
+                | Self::Processing
         )
     }
 
@@ -125,7 +133,10 @@ impl RecyclingSessionStatus {
     }
 
     pub fn can_measure(self) -> bool {
-        matches!(self, Self::Connected | Self::Measuring | Self::Processing)
+        matches!(
+            self,
+            Self::Connected | Self::Sorting | Self::Measuring | Self::Processing
+        )
     }
 }
 
@@ -266,4 +277,22 @@ pub struct Organisation {
     pub id: OrganisationId,
     pub name: String,
     pub slug: String,
+}
+
+/// Display name for a Conserve Site. DB may still store "Yaba Collection Point".
+pub fn conserve_site_label(name: &str) -> String {
+    let trimmed = name.trim();
+    let without_prefix = trimmed
+        .strip_prefix("Conserve Site — ")
+        .or_else(|| trimmed.strip_prefix("Conserve Site - "))
+        .unwrap_or(trimmed);
+    let short = without_prefix
+        .strip_suffix(" Collection Point")
+        .unwrap_or(without_prefix)
+        .trim();
+    if short.is_empty() {
+        "Conserve Site".into()
+    } else {
+        format!("Conserve Site — {short}")
+    }
 }

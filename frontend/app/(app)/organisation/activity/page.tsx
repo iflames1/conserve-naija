@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query"
 import { browserApi } from "@/lib/api/browser"
 import { EmptyState } from "@/components/ui"
 import type { Deposit } from "@/lib/api/types"
-import { formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
+import { cpAmount, formatKg, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
 import { useSessionUser } from "@/stores/session"
 
 export default function OrgActivityPage() {
@@ -38,8 +38,8 @@ export default function OrgActivityPage() {
                                     +{formatKg(deposit.weightKg)} {deposit.materialName}
                                 </p>
                                 <p className="text-xs text-muted-foreground">
-                                    {deposit.collectionPointName} · +
-                                    {formatPoints(deposit.greenPoints)} GP
+                                    {siteLabel(deposit)} · +
+                                    {formatPoints(cpAmount(deposit))} CP
                                 </p>
                             </div>
                             <p className="text-xs text-muted-foreground">

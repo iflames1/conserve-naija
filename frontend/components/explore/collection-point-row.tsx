@@ -6,6 +6,7 @@ import {
     machineIsOpen,
     machineLocateHref,
     machineStatusLabel,
+    siteLabel,
 } from "@/lib/utils"
 
 export function CollectionPointRow({
@@ -30,7 +31,7 @@ export function CollectionPointRow({
         <li className="px-4 py-4 sm:px-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                    <h2 className="font-display text-lg">{point.name}</h2>
+                    <h2 className="font-display text-lg">{siteLabel(point) || point.name}</h2>
                     <p className="mt-0.5 text-sm text-muted-foreground">
                         {point.address}
                     </p>

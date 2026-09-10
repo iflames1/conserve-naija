@@ -16,6 +16,8 @@ pub fn router() -> Router<AppState> {
     Router::new()
         .route("/collection-points", get(list_points))
         .route("/collection-points/{id}", get(get_point))
+        .route("/sites", get(list_points))
+        .route("/sites/{id}", get(get_point))
 }
 
 async fn list_points(

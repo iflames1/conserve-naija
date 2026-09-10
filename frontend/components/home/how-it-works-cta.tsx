@@ -10,7 +10,7 @@ export function HowItWorksCta() {
     if (user) {
         return (
             <ButtonLink href="/" variant="primary">
-                Get a code
+                Start recycling
             </ButtonLink>
         )
     }

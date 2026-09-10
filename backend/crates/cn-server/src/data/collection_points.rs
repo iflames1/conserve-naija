@@ -74,7 +74,7 @@ impl PgCollectionPointRepo {
                    cp.latitude, cp.longitude, cp.status, cp.default_pickup_threshold_grams
             FROM collection_points cp
             JOIN organisations o ON o.id = cp.organisation_id
-            WHERE cp.status = 'active'
+            WHERE cp.status = 'active' AND cp.slug = 'yaba'
             ORDER BY cp.name
             "#,
         )

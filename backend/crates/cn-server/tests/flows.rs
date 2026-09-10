@@ -14,7 +14,9 @@ use uuid::Uuid;
 const ORG: &str = "00000000-0000-7000-8000-000000000001";
 const PLASTIC: &str = "00000000-0000-7000-8000-000000000010";
 const LEKKI: &str = "00000000-0000-7000-8000-000000000021";
+const YABA: &str = "00000000-0000-7000-8000-000000000022";
 const DEVICE_KEY: &str = "cn-dev-lekki-device-key";
+const YABA_KEY: &str = "cn-dev-yaba-device-key";
 
 #[tokio::test]
 async fn happy_path_mission_iot_and_pickup() {
@@ -34,13 +36,16 @@ async fn happy_path_mission_iot_and_pickup() {
         .await;
 
     let points = ctx.get("/collection-points", None).await;
+    let listed = points.as_array().unwrap();
     assert!(
-        points
-            .as_array()
-            .unwrap()
-            .iter()
-            .any(|p| p["name"] == "Lekki Collection Point")
+        listed.iter().any(|p| p["slug"] == "yaba" && p["name"] == "Yaba"),
+        "{points}"
     );
+    assert!(
+        listed.iter().all(|p| p["slug"] != "lekki"),
+        "{points}"
+    );
+    assert_eq!(listed[0]["siteName"], "Conserve Site — Yaba");
 
     let started = ctx
         .post("/recycling-sessions", Some(user), json!({}))
@@ -74,9 +79,11 @@ async fn happy_path_mission_iot_and_pickup() {
     assert_eq!(measured["status"], "completed");
     assert_eq!(measured["weightKg"], 2.5);
     assert_eq!(measured["greenPoints"], 250);
+    assert_eq!(measured["conservePoints"], 250);
 
     let me = ctx.get("/me", Some(user)).await;
     assert_eq!(me["greenPointsBalance"], 250);
+    assert_eq!(me["conservePointsBalance"], 250);
     assert_eq!(me["depositCount"], 1);
     assert_eq!(me["recycledKg"], 2.5);
 
@@ -183,13 +190,19 @@ async fn happy_path_mission_iot_and_pickup() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|d| d["greenPoints"] == 250 && d["weightKg"] == 2.5)
+            .any(|d| {
+                d["greenPoints"] == 250
+                    && d["conservePoints"] == 250
+                    && d["weightKg"] == 2.5
+                    && d["siteName"] == "Conserve Site — Lekki"
+            })
     );
 }
 
 #[tokio::test]
 async fn rejects_invalid_inputs_and_unauthorized_access() {
     let ctx = TestCtx::boot().await;
+    ctx.reset_lekki().await;
     let user = Uuid::now_v7();
     ctx.upsert_user(user, &format!("stranger-{user}@test.local"), "Stranger")
         .await;
@@ -239,6 +252,7 @@ async fn rejects_invalid_inputs_and_unauthorized_access() {
 #[tokio::test]
 async fn expired_session_cannot_be_claimed() {
     let ctx = TestCtx::boot().await;
+    ctx.reset_lekki().await;
     let user = Uuid::now_v7();
     ctx.upsert_user(user, &format!("exp-{user}@test.local"), "Exp")
         .await;
@@ -365,14 +379,16 @@ async fn organisation_can_register_machine_and_point() {
 async fn public_list_includes_yaba() {
     let ctx = TestCtx::boot().await;
     let points = ctx.get("/collection-points", None).await;
+    let listed = points.as_array().unwrap();
     assert!(
-        points
-            .as_array()
-            .unwrap()
+        listed
             .iter()
             .any(|point| point["slug"] == "yaba" && point["status"] == "active"),
         "{points}"
     );
+    assert!(listed.iter().all(|point| point["slug"] != "lekki"), "{points}");
+    let sites = ctx.get("/sites", None).await;
+    assert_eq!(sites, points);
 }
 
 #[tokio::test]
@@ -434,6 +450,85 @@ async fn admin_can_add_existing_and_invite_missing_email() {
             .any(|org| org["slug"] == "recycle-lagos"),
         "{isaac_me}"
     );
+}
+
+#[tokio::test]
+async fn mixed_waste_fractions_credit_conserve_points() {
+    let ctx = TestCtx::boot().await;
+    sqlx::query(
+        r#"
+        UPDATE recycling_sessions
+        SET status = 'cancelled', updated_at = now()
+        WHERE device_id = '00000000-0000-7000-8000-000000000032'
+          AND status IN ('waiting_for_machine', 'connected', 'sorting', 'measuring', 'processing')
+        "#,
+    )
+    .execute(&ctx.db)
+    .await
+    .unwrap();
+    let user = Uuid::now_v7();
+    ctx.upsert_user(user, &format!("mix-{user}@test.local"), "Mix")
+        .await;
+
+    let started = ctx
+        .post("/recycling-sessions", Some(user), json!({}))
+        .await;
+    let session_id = started["id"].as_str().unwrap().to_owned();
+
+    let claimed = ctx
+        .device_post_as(
+            YABA_KEY,
+            "/iot/devices/me/sessions/claim",
+            json!({ "code": started["code"] }),
+        )
+        .await;
+    assert_eq!(claimed["status"], "connected");
+    assert_eq!(claimed["siteName"], "Conserve Site — Yaba");
+
+    let sorting = ctx
+        .device_post_as(
+            YABA_KEY,
+            &format!("/iot/devices/me/sessions/{session_id}/progress"),
+            json!({ "stage": "sorting" }),
+        )
+        .await;
+    assert_eq!(sorting["status"], "sorting");
+
+    let live = ctx
+        .get(&format!("/recycling-sessions/{session_id}"), Some(user))
+        .await;
+    assert_eq!(live["status"], "sorting");
+    assert_eq!(live["siteName"], "Conserve Site — Yaba");
+
+    // 1.0 kg plastic @ 100 + 0.5 kg glass @ 40 + 0.5 kg paper @ 60 = 150 CP
+    let measured = ctx
+        .device_post_as(
+            YABA_KEY,
+            &format!("/iot/devices/me/sessions/{session_id}/measurement"),
+            json!({
+                "fractions": [
+                    { "material": "plastic", "weightKg": 1.0 },
+                    { "material": "glass", "weightKg": 0.5 },
+                    { "material": "paper", "weightKg": 0.5 }
+                ]
+            }),
+        )
+        .await;
+    assert_eq!(measured["status"], "completed");
+    assert_eq!(measured["weightKg"], 2.0);
+    assert_eq!(measured["conservePoints"], 150);
+    assert_eq!(measured["greenPoints"], 150);
+    assert_eq!(measured["fractions"].as_array().unwrap().len(), 3);
+
+    let me = ctx.get("/me", Some(user)).await;
+    assert_eq!(me["conservePointsBalance"], 150);
+    assert_eq!(me["recycledKg"], 2.0);
+
+    let history = ctx.get("/me/deposits", Some(user)).await;
+    assert_eq!(history[0]["conservePoints"], 150);
+    assert_eq!(history[0]["collectionPointId"], YABA);
+    assert_eq!(history[0]["siteName"], "Conserve Site — Yaba");
+    assert_eq!(history[0]["fractions"].as_array().unwrap().len(), 3);
 }
 
 struct TestCtx {
@@ -589,10 +684,14 @@ impl TestCtx {
     }
 
     async fn device_post(&self, path: &str, body: Value) -> Value {
+        self.device_post_as(DEVICE_KEY, path, body).await
+    }
+
+    async fn device_post_as(&self, key: &str, path: &str, body: Value) -> Value {
         let res = self
             .client
             .post(format!("{}{path}", self.base))
-            .header("Authorization", format!("Device {DEVICE_KEY}"))
+            .header("Authorization", format!("Device {key}"))
             .json(&body)
             .send()
             .await

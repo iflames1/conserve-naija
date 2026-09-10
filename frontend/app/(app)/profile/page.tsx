@@ -1,11 +1,8 @@
 "use client"
 
 import Link from "next/link"
-import { useQuery } from "@tanstack/react-query"
 import { RiLogoutBoxRLine } from "@remixicon/react"
 
-import { browserApi } from "@/lib/api/browser"
-import type { Deposit } from "@/lib/api/types"
 import { PageContainer } from "@/components/common/page-container"
 import { ProfilePageSkeleton } from "@/components/common/page-skeleton"
 import { SectionHeader } from "@/components/common/section"
@@ -14,6 +11,7 @@ import { ProfileHeader } from "@/components/profile/profile-header"
 import { ProfileStats } from "@/components/profile/profile-stats"
 import { Button, ButtonLink, EmptyState } from "@/components/ui"
 import { authClient } from "@/lib/auth/client"
+import { useActivityDeposits, useActivityLoading } from "@/stores/activity"
 import { useSessionActions, useSessionLoading, useSessionUser } from "@/stores/session"
 
 export default function ProfilePage() {
@@ -21,16 +19,8 @@ export default function ProfilePage() {
     const loading = useSessionLoading()
     const { setUser } = useSessionActions()
 
-    const deposits = useQuery({
-        queryKey: ["my-deposits", user?.id],
-        enabled: Boolean(user),
-        queryFn: async () => {
-            const rows = await browserApi<Deposit[]>("/me/deposits", {
-                fallback: "Failed to load deposits",
-            })
-            return rows.filter((row) => row.status === "confirmed")
-        },
-    })
+    const deposits = useActivityDeposits()
+    const depositsLoading = useActivityLoading()
 
     if (!user) {
         if (loading) {
@@ -55,7 +45,7 @@ export default function ProfilePage() {
     }
 
     const org = user.organisations?.[0]
-    const dropCount = deposits.data?.length ?? user.depositCount ?? 0
+    const dropCount = user.depositCount ?? deposits.length
 
     return (
         <PageContainer width="wide" className="space-y-8">
@@ -72,8 +62,8 @@ export default function ProfilePage() {
                     }
                 />
                 <ActivityHistory
-                    deposits={deposits.data ?? []}
-                    loading={deposits.isPending && !deposits.data}
+                    deposits={deposits}
+                    loading={depositsLoading && deposits.length === 0}
                 />
             </section>
 

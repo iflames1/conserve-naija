@@ -13,16 +13,16 @@ import { demoMachine, formatNaira, machineIsOpen } from "@/lib/utils"
 
 const STEPS = [
     {
-        title: "Get a code",
-        body: "Open the app at the machine. Six digits show up for the keypad.",
+        title: "Your Conserve OTP",
+        body: "Open the app in the Conserve Site. Six digits show up for the keypad.",
     },
     {
         title: "Turn it in",
-        body: "Type the code, put the plastic on the scale, press weigh.",
+        body: "Type the OTP, dump mixed waste, press weigh. The machine sorts it.",
     },
     {
         title: "Get paid",
-        body: "Green Points land in your wallet. One point is ₦1.",
+        body: "Conserve Points land in your wallet. One point is ₦1.",
     },
 ]
 
@@ -32,7 +32,7 @@ export function GuestLanding() {
         queryFn: () =>
             browserApi<CollectionPoint[]>("/collection-points", {
                 auth: false,
-                fallback: "Failed to load collection points",
+                fallback: "Couldn't reach the site",
             }),
         retry: 2,
     })
@@ -67,14 +67,14 @@ export function GuestLanding() {
 
                         <div className="space-y-4">
                             <h1 className="font-display text-4xl leading-[1.05] sm:text-6xl">
-                                Turn in your plastic.
+                                Turn in what you&apos;ve got.
                                 <br />
                                 Get paid for it.
                             </h1>
                             <p className="max-w-lg text-base text-muted-foreground sm:text-lg">
-                                Walk up with a bag. Get a code, type it on the
-                                keypad, put it on the scale. The machine weighs.
-                                Points show up in your wallet.
+                                Walk up with a bag. Get a Conserve OTP, type it
+                                on the keypad, dump it. The machine sorts and
+                                weighs. Conserve Points show up in your wallet.
                             </p>
                         </div>
 
@@ -93,9 +93,9 @@ export function GuestLanding() {
                         </div>
 
                         <dl className="flex flex-wrap gap-x-10 gap-y-4 border-t border-border/60 pt-6">
-                            <Figure label="Pay" value="1 GP = ₦1" />
+                            <Figure label="Pay" value="1 CP = ₦1" />
                             <Figure
-                                label="Plastic"
+                                label="From"
                                 value={
                                     plasticRate != null
                                         ? `${formatNaira(plasticRate)}/kg`
@@ -113,7 +113,7 @@ export function GuestLanding() {
             <section className="space-y-5">
                 <div>
                     <h2 className="font-display text-2xl sm:text-3xl">
-                        At the machine
+                        In the Conserve Site
                     </h2>
                     <p className="mt-1 text-sm text-muted-foreground">
                         You don&apos;t pick a site in the app first. You walk up.
@@ -146,7 +146,7 @@ export function GuestLanding() {
                             The machine
                         </h2>
                         <p className="mt-1 text-sm text-muted-foreground">
-                            One site is running. Walk up, get a code, turn it in.
+                            One site is running. Walk up, start recycling, turn it in.
                         </p>
                     </div>
                 </div>
@@ -177,10 +177,11 @@ export function GuestLanding() {
                 />
                 <div className="relative mx-auto max-w-md space-y-5">
                     <h2 className="font-display text-3xl sm:text-4xl">
-                        Got a bag of plastic?
+                        Got a bag to turn in?
                     </h2>
                     <p className="text-muted-foreground">
-                        Make an account, walk up to a machine, get a code.
+                        Make an account, walk up to Conserve Site — Yaba, start
+                        recycling.
                     </p>
                     <ButtonLink href="/auth/sign-up" size="lg" variant="primary">
                         Create an account

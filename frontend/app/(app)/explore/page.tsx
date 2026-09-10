@@ -16,7 +16,7 @@ export default function ExplorePage() {
         queryFn: () =>
             browserApi<CollectionPoint[]>("/collection-points", {
                 auth: false,
-                fallback: "Failed to load collection points",
+                fallback: "Couldn't load Conserve Sites",
             }),
         retry: 2,
     })
@@ -26,10 +26,9 @@ export default function ExplorePage() {
     return (
         <PageContainer>
             <header className="max-w-xl">
-                <h1 className="font-display text-4xl">The machine</h1>
+                <h1 className="font-display text-4xl">Conserve Sites</h1>
                 <p className="mt-2 text-muted-foreground">
-                    One site is open. You don&apos;t pick it in the app. Walk up
-                    and get a code.
+                    Yaba is open. Walk up and get a code.
                 </p>
             </header>
 
@@ -38,8 +37,8 @@ export default function ExplorePage() {
                     <MachineRowSkeleton />
                 ) : points.isError ? (
                     <EmptyState
-                        title="Couldn't reach the machine"
-                        description="The list comes from the site. Give it a moment, then try again. You don't register this one from here."
+                        title="Couldn't load Conserve Sites"
+                        description="The list didn't come through."
                         action={
                             <Button
                                 variant="primary"
@@ -57,7 +56,7 @@ export default function ExplorePage() {
                 ) : (
                     <EmptyState
                         title="Yaba isn't listed"
-                        description="The walk-up machine should show up here on its own. You don't register it from this page."
+                        description="It should show up here on its own."
                     />
                 )}
             </div>

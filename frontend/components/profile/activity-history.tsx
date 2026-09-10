@@ -7,7 +7,7 @@ import { RiRecycleLine } from "@remixicon/react"
 import { ActivityRowsSkeleton } from "@/components/common/page-skeleton"
 import { ButtonLink, EmptyState } from "@/components/ui"
 import type { Deposit } from "@/lib/api/types"
-import { cn, formatKg, formatPoints, formatRelativeTime } from "@/lib/utils"
+import { cn, cpAmount, formatKg, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
 
 export function ActivityHistory({
     deposits,
@@ -35,7 +35,7 @@ export function ActivityHistory({
                 description="First drop shows up after a machine weighs it."
                 action={
                     <ButtonLink href="/" variant="primary" size="sm">
-                        Get a code
+                        Start recycling
                     </ButtonLink>
                 }
             />
@@ -55,19 +55,19 @@ export function ActivityHistory({
                                 {formatKg(deposit.weightKg)} {deposit.materialName}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
-                                {deposit.collectionPointName}
+                                {siteLabel(deposit)}
                             </p>
                         </div>
                         <div className="shrink-0 text-right">
                             <p
                                 className={cn(
                                     "tnum font-display text-sm",
-                                    (deposit.greenPoints ?? 0) > 0
+                                    cpAmount(deposit) > 0
                                         ? "text-primary"
                                         : "text-muted-foreground"
                                 )}
                             >
-                                +{formatPoints(deposit.greenPoints)} GP
+                                +{formatPoints(cpAmount(deposit))} CP
                             </p>
                             <p className="text-[11px] text-muted-foreground">
                                 {formatRelativeTime(
