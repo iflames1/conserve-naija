@@ -25,8 +25,8 @@ const char* WIFI_SSID = "Wokwi-GUEST";
 const char* WIFI_PASS = "";
 // Laptop (VS Code + Private IoT Gateway). Public viewer / wokwi.com: Railway origin.
 #ifndef CN_API_HOST
-#define CN_API_HOST "http://host.wokwi.internal:8080"
-// #define CN_API_HOST "https://conserve-naija-production.up.railway.app"
+//#define CN_API_HOST "http://host.wokwi.internal:8080"
+#define CN_API_HOST "https://conserve-naija-production.up.railway.app"
 #endif
 const char* API_HOST = CN_API_HOST;
 const char* DEVICE_KEY = "cn-dev-yaba-device-key";

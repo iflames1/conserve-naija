@@ -24,7 +24,8 @@ import {
     Stat,
 } from "@/components/ui"
 import { OrgDashboardSkeleton } from "@/components/common/page-skeleton"
-import { cpAmount, formatKg, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
+import { OrgDepositRow } from "@/components/organisation/deposit-row"
+import { formatKg, formatRelativeTime, siteLabel } from "@/lib/utils"
 import { usePendingAction, usePendingKey } from "@/lib/use-pending-action"
 import { useNotificationActions } from "@/stores/notifications"
 import { useSessionActions, useSessionLoading, useSessionUser } from "@/stores/session"
@@ -326,22 +327,7 @@ export function OrganisationDashboard() {
                 <h2 className="text-2xl font-semibold tracking-tight">Recent activity</h2>
                 <div className="mt-4 space-y-2">
                     {(deposits.data ?? []).slice(0, 6).map((deposit) => (
-                        <div
-                            key={deposit.id}
-                            className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border/60 px-4 py-3"
-                        >
-                            <div>
-                                <p className="font-medium">
-                                    +{formatKg(deposit.weightKg)} {deposit.materialName}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                    {siteLabel(deposit)} · +{formatPoints(cpAmount(deposit))} CP
-                                </p>
-                            </div>
-                            <p className="text-xs text-muted-foreground">
-                                {formatRelativeTime(deposit.confirmedAt ?? deposit.createdAt)}
-                            </p>
-                        </div>
+                        <OrgDepositRow key={deposit.id} deposit={deposit} />
                     ))}
                     {!deposits.data?.length && !deposits.isPending ? (
                         <p className="text-sm text-muted-foreground">

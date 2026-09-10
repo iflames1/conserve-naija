@@ -7,7 +7,7 @@ import { RiRecycleLine } from "@remixicon/react"
 import { ActivityRowsSkeleton } from "@/components/common/page-skeleton"
 import { ButtonLink, EmptyState } from "@/components/ui"
 import type { Deposit } from "@/lib/api/types"
-import { cn, cpAmount, formatKg, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
+import { cn, cpAmount, depositFractions, formatDepositMaterials, formatPoints, formatRelativeTime, siteLabel } from "@/lib/utils"
 
 export function ActivityHistory({
     deposits,
@@ -44,15 +44,20 @@ export function ActivityHistory({
 
     return (
         <ul className="divide-y divide-border/60 overflow-hidden rounded-2xl border border-border/70 surface-raised">
-            {rows.map((deposit) => (
+            {rows.map((deposit) => {
+                const lines = depositFractions(deposit)
+                const mixed = lines.length > 1
+                return (
                 <li key={deposit.id}>
                     <div className="flex items-center gap-3 px-3 py-2.5">
                         <span className="tnum grid size-9 shrink-0 place-items-center rounded-lg bg-primary/15 font-display text-xs text-primary">
-                            {(deposit.materialName ?? "?").slice(0, 1).toUpperCase()}
+                            {mixed
+                                ? "Mix"
+                                : (lines[0]?.materialName ?? "?").slice(0, 1).toUpperCase()}
                         </span>
                         <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium">
-                                {formatKg(deposit.weightKg)} {deposit.materialName}
+                            <p className="text-sm font-medium">
+                                {formatDepositMaterials(deposit)}
                             </p>
                             <p className="truncate text-xs text-muted-foreground">
                                 {siteLabel(deposit)}
@@ -77,7 +82,8 @@ export function ActivityHistory({
                         </div>
                     </div>
                 </li>
-            ))}
+                )
+            })}
         </ul>
     )
 }
