@@ -24,8 +24,9 @@ WORKDIR /app
 COPY --from=builder /src/target/release/cn-server /app/cn-server
 COPY --from=builder /src/migrations /app/migrations
 
+# Do not bake PORT. Railway injects it at runtime and the public proxy
+# forwards to that port. Local compose still sets PORT=8080.
 ENV HOST=0.0.0.0 \
-    PORT=8080 \
     MIGRATIONS_DIR=/app/migrations \
     RUST_LOG=info,cn_server=info
 
