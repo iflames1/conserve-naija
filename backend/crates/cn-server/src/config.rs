@@ -1,4 +1,4 @@
-use std::net::IpAddr;
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 
 use anyhow::{Context, Result, anyhow};
 
@@ -29,6 +29,7 @@ impl Config {
             .unwrap_or_else(|| "0.0.0.0".to_owned())
             .parse::<IpAddr>()
             .context("parse HOST")?;
+        // Railway injects PORT and proxies to it. 8080 is only the local default.
         let port = optional("PORT")
             .unwrap_or_else(|| "8080".to_owned())
             .parse::<u16>()
@@ -61,6 +62,23 @@ impl Config {
     }
 }
 
+/// Bind addresses for `HOST`/`PORT`.
+///
+/// Unspecified hosts (`0.0.0.0` and `::`) listen on IPv4 **and** IPv6.
+/// Railway's edge reaches the container over IPv6; an IPv4-only bind
+/// (`0.0.0.0:$PORT`) accepts no proxy traffic — TLS succeeds at the
+/// edge, then the client hangs with 0 bytes.
+pub fn listen_addrs(host: IpAddr, port: u16) -> Vec<SocketAddr> {
+    if host.is_unspecified() {
+        vec![
+            SocketAddr::from((Ipv6Addr::UNSPECIFIED, port)),
+            SocketAddr::from((Ipv4Addr::UNSPECIFIED, port)),
+        ]
+    } else {
+        vec![SocketAddr::from((host, port))]
+    }
+}
+
 pub fn is_main() -> bool {
     let network = std::env::var("NETWORK")
         .unwrap_or_default()
@@ -84,4 +102,27 @@ pub fn setting(key: &str, local: &str) -> Result<String> {
         return Ok(local.to_owned());
     }
     Err(anyhow!("{key} must be set"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn unspecified_v4_host_listens_ipv6_and_ipv4() {
+        let addrs = listen_addrs(Ipv4Addr::UNSPECIFIED.into(), 8080);
+        assert_eq!(
+            addrs,
+            vec![
+                SocketAddr::from((Ipv6Addr::UNSPECIFIED, 8080)),
+                SocketAddr::from((Ipv4Addr::UNSPECIFIED, 8080)),
+            ]
+        );
+    }
+
+    #[test]
+    fn loopback_stays_v4() {
+        let addrs = listen_addrs(Ipv4Addr::LOCALHOST.into(), 8080);
+        assert_eq!(addrs, vec![SocketAddr::from((Ipv4Addr::LOCALHOST, 8080))]);
+    }
 }
