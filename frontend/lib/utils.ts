@@ -78,3 +78,23 @@ export function machineStatusLabel(status: string): string {
 export function demoMachine<T extends { slug: string }>(points: T[]): T | undefined {
     return points.find((point) => point.slug === "yaba") ?? points[0]
 }
+
+export const PUBLIC_MACHINE_SIM_URL =
+    "https://wokwi.com/experimental/viewer?diagram=https://raw.githubusercontent.com/iflames1/conserve-naija-wokwi/main/diagram.json&firmware=https://raw.githubusercontent.com/iflames1/conserve-naija-wokwi/main/firmware.bin"
+
+export function machineLocateHref(point: {
+    slug: string
+    address?: string | null
+    latitude?: number | null
+    longitude?: number | null
+}): string | null {
+    if (point.slug === "yaba") return PUBLIC_MACHINE_SIM_URL
+    if (point.latitude != null && point.longitude != null) {
+        return `https://www.google.com/maps/search/?api=1&query=${point.latitude},${point.longitude}`
+    }
+    const address = point.address?.trim()
+    if (address) {
+        return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    }
+    return null
+}

@@ -1,8 +1,10 @@
-import { Badge } from "@/components/ui"
+import { Badge, buttonVariants } from "@/components/ui"
 import type { CollectionPoint } from "@/lib/api/types"
 import {
+    cn,
     formatNaira,
     machineIsOpen,
+    machineLocateHref,
     machineStatusLabel,
 } from "@/lib/utils"
 
@@ -12,6 +14,9 @@ export function CollectionPointRow({
     point: CollectionPoint
 }) {
     const open = machineIsOpen(point.status)
+    const locateHref = machineLocateHref(point)
+    const locateLabel =
+        point.slug === "yaba" ? "Open the Yaba machine" : "Show on the map"
     const prices =
         point.materials
             .map((material) =>
@@ -34,7 +39,22 @@ export function CollectionPointRow({
                     {machineStatusLabel(point.status)}
                 </Badge>
             </div>
-            <p className="mt-3 text-sm text-muted-foreground">{prices}</p>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">{prices}</p>
+                {locateHref ? (
+                    <a
+                        href={locateHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={locateLabel}
+                        className={cn(
+                            buttonVariants({ variant: "outline", size: "sm" })
+                        )}
+                    >
+                        Locate
+                    </a>
+                ) : null}
+            </div>
         </li>
     )
 }
