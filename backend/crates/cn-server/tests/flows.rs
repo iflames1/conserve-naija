@@ -21,6 +21,10 @@ async fn happy_path_mission_iot_and_pickup() {
     let ctx = TestCtx::boot().await;
     ctx.reset_lekki().await;
 
+    let health = ctx.get("/health", None).await;
+    assert_eq!(health["ok"], true);
+    assert_eq!(health["service"], "conserve-naija");
+
     let user = Uuid::now_v7();
     ctx.upsert_user(user, &format!("citizen-{user}@test.local"), "Ada")
         .await;
