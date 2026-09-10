@@ -1,5 +1,14 @@
+import type { Metadata } from "next"
+
 import { PageContainer } from "@/components/common/page-container"
 import { HowItWorksCta } from "@/components/home/how-it-works-cta"
+import { pageMeta } from "@/lib/seo"
+
+export const metadata: Metadata = pageMeta(
+    "How it works",
+    "Walk up to Conserve Site — Yaba, type your Conserve OTP, dump mixed waste, and get paid. 1 CP = ₦1.",
+    "/how-it-works"
+)
 
 const STEPS = [
     {

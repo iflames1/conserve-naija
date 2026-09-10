@@ -1,4 +1,13 @@
+import type { Metadata } from "next"
+
 import { PageContainer } from "@/components/common/page-container"
+import { pageMeta } from "@/lib/seo"
+
+export const metadata: Metadata = pageMeta(
+    "About",
+    "Organisations run the machines. You walk up, turn in mixed waste, and earn Conserve Points. 1 CP = ₦1.",
+    "/about"
+)
 
 export default function AboutPage() {
     return (
