@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use std::time::Duration;
 
 use anyhow::Context;
 use tracing::info;
@@ -21,13 +22,34 @@ async fn main() -> anyhow::Result<()> {
         "starting conserve naija"
     );
 
-    let db = postgres::connect(&config.database_url)
-        .await
-        .context("postgres")?;
+    let db = postgres::open(&config.database_url).context("postgres")?;
     let state = AppState::new(config.clone(), db);
-    if let Err(err) = state.jwt.prefetch().await {
-        tracing::warn!(error = %err, "JWKS not cached yet; first login may fetch it");
+
+    {
+        let jwt = state.jwt.clone();
+        tokio::spawn(async move {
+            if let Err(err) = jwt.prefetch().await {
+                tracing::warn!(error = %err, "JWKS not cached yet; first login may fetch it");
+            }
+        });
     }
+    {
+        let pool = state.db.clone();
+        tokio::spawn(async move {
+            let mut delay = Duration::from_secs(1);
+            loop {
+                match postgres::prepare(&pool).await {
+                    Ok(()) => break,
+                    Err(err) => {
+                        tracing::error!(error = %err, "postgres prepare failed; retrying");
+                        tokio::time::sleep(delay).await;
+                        delay = (delay * 2).min(Duration::from_secs(15));
+                    }
+                }
+            }
+        });
+    }
+
     let app = routes::router(state);
 
     let addr = SocketAddr::from((config.host, config.port));

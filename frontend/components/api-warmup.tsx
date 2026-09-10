@@ -15,6 +15,7 @@ export function ApiWarmup() {
         void browserApi("/health", {
             auth: false,
             fallback: "API unreachable",
+            signal: AbortSignal.timeout(4_000),
         })
             .then(() => {
                 if (cancelled) return
