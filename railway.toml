@@ -11,6 +11,6 @@ dockerfilePath = "Dockerfile"
 # Cheap liveness on $PORT (same port the public proxy uses). Do not point
 # this at /ready — that waits on Postgres.
 healthcheckPath = "/health"
-healthcheckTimeout = 60
+healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 5

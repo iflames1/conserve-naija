@@ -27,7 +27,11 @@ const char* WIFI_PASS = "";
 const char* API_HOST = "https://conserve-naija-production.up.railway.app";
 const char* DEVICE_KEY = "cn-dev-yaba-device-key";
 const char* MATERIAL = "plastic";
-const char* FIRMWARE = "wokwi-0.3.4";
+const char* FIRMWARE = "wokwi-0.3.5";
+const uint32_t WIFI_RETRY_MS = 15000;
+const uint32_t HTTP_TIMEOUT_MS = 4000;
+const uint32_t TLS_HANDSHAKE_S = 10;
+const uint32_t HEARTBEAT_MS = 30000;
 
 const uint8_t PIN_WEIGHT = 34;
 const uint8_t PIN_WEIGH_BTN = 18;
@@ -172,12 +176,15 @@ String jsonGet(const String& body, const char* key) {
   return body.substring(at, end);
 }
 
-bool postJson(const String& path, const String& body, String* response) {
+int postJson(const String& path, const String& body, String* response) {
   HTTPClient http;
   String url = String(API_HOST) + path;
   WiFiClientSecure tls;
+  http.setConnectTimeout(HTTP_TIMEOUT_MS);
+  http.setTimeout(HTTP_TIMEOUT_MS);
   if (url.startsWith("https://")) {
     tls.setInsecure();
+    tls.setHandshakeTimeout(TLS_HANDSHAKE_S);
     http.begin(tls, url);
   } else {
     http.begin(url);
@@ -189,7 +196,19 @@ bool postJson(const String& path, const String& body, String* response) {
   Serial.printf("%s -> %d %s\n", path.c_str(), codeHttp, payload.c_str());
   if (response) *response = payload;
   http.end();
-  return codeHttp >= 200 && codeHttp < 300;
+  return codeHttp;
+}
+
+bool httpOk(int status) {
+  return status >= 200 && status < 300;
+}
+
+void setLastError(const String& response, int status, const char* fallback) {
+  lastError = jsonGet(response, "error");
+  if (lastError.length() > 20) lastError = lastError.substring(0, 20);
+  if (lastError.length() == 0) {
+    lastError = status < 0 ? "NO REPLY" : fallback;
+  }
 }
 
 void heartbeat() {
@@ -219,10 +238,9 @@ float readWeightKg() {
 void claimSession() {
   String response;
   String body = String("{\"code\":\"") + code + "\"}";
-  if (!postJson("/iot/devices/me/sessions/claim", body, &response)) {
-    lastError = jsonGet(response, "error");
-    if (lastError.length() > 20) lastError = lastError.substring(0, 20);
-    if (lastError.length() == 0) lastError = "BAD CODE";
+  int status = postJson("/iot/devices/me/sessions/claim", body, &response);
+  if (!httpOk(status)) {
+    setLastError(response, status, "BAD CODE");
     enter(ST_ERROR);
     return;
   }
@@ -241,9 +259,9 @@ void submitMeasurement(float kg) {
   String body = String("{\"material\":\"") + MATERIAL + "\",\"weightKg\":" + String(kg, 2) + "}";
   String response;
   enter(ST_PROCESSING);
-  if (!postJson(path, body, &response)) {
-    lastError = jsonGet(response, "error");
-    if (lastError.length() == 0) lastError = "DEPOSIT FAILED";
+  int status = postJson(path, body, &response);
+  if (!httpOk(status)) {
+    setLastError(response, status, "DEPOSIT FAILED");
     enter(ST_ERROR);
     return;
   }
@@ -259,27 +277,37 @@ void submitMeasurement(float kg) {
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("boot");
   pinMode(PIN_WEIGH_BTN, INPUT_PULLUP);
   lcd.init();
   lcd.backlight();
   lcd.createChar(0, enterGlyph);
   show("CONSERVE NAIJA", "Connecting WiFi", "", "");
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(WIFI_SSID, WIFI_PASS, 6);
+  unsigned long wifiStart = millis();
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
     Serial.print(".");
+    if (millis() - wifiStart > WIFI_RETRY_MS) {
+      show("NO WIFI", "Can't get online", "Trying again", "");
+      WiFi.disconnect();
+      delay(400);
+      WiFi.begin(WIFI_SSID, WIFI_PASS, 6);
+      wifiStart = millis();
+    }
   }
   Serial.println("\nwifi up");
-  heartbeat();
+  lastHeartbeat = millis();
   enter(ST_IDLE);
 }
 
 void loop() {
   unsigned long now = millis();
-  if (now - lastHeartbeat > 8000) {
+  if (state == ST_IDLE && now - lastHeartbeat > HEARTBEAT_MS) {
     lastHeartbeat = now;
     heartbeat();
-    if (state == ST_IDLE) telemetry(40.0 + (now / 1000 % 40), 40);
+    telemetry(40.0 + (now / 1000 % 40), 40);
   }
 
   char key = keypad.getKey();

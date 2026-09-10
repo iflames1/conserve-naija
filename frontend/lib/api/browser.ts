@@ -1,8 +1,7 @@
 import { getBrowserAccessToken } from "@/lib/auth/browser-token"
 import { publicApiUrl } from "@/lib/config"
 
-const API_TIMEOUT_MS = 12_000
-const PUBLIC_TIMEOUT_MS = 20_000
+const API_TIMEOUT_MS = 8_000
 
 async function authHeaders(): Promise<HeadersInit> {
     const token = await getBrowserAccessToken()
@@ -38,9 +37,7 @@ export async function browserApi<T>(
         cache: "no-store",
         ...rest,
         headers,
-        signal:
-            rest.signal ??
-            AbortSignal.timeout(auth ? API_TIMEOUT_MS : PUBLIC_TIMEOUT_MS),
+        signal: rest.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
     })
     return parse<T>(response, fallback)
 }

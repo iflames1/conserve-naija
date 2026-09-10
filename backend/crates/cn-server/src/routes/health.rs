@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use axum::Json;
-use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::routing::get;
+use axum::Json;
+use axum::Router;
 use serde::Serialize;
 
 use crate::state::AppState;
@@ -28,7 +28,7 @@ pub fn router() -> Router<AppState> {
         .route("/ready", get(ready))
 }
 
-/// Liveness only. Railway and the frontend warmup must not wait on Postgres or JWKS.
+/// Liveness only. Does not wait on Postgres or JWKS.
 async fn health() -> Json<Health> {
     Json(Health {
         ok: true,

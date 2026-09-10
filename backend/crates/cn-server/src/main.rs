@@ -55,42 +55,15 @@ async fn main() -> anyhow::Result<()> {
     serve_http(config.host, config.port, app).await
 }
 
-/// Bind IPv4+IPv6 when HOST is unspecified so Railway's IPv6 edge can connect.
+/// One listener. Unspecified HOST binds `[::]:PORT` (dual-stack on Linux).
 async fn serve_http(host: IpAddr, port: u16, app: axum::Router) -> anyhow::Result<()> {
-    let mut listeners = Vec::new();
-    let mut last_err = None;
-    for addr in config::listen_addrs(host, port) {
-        match tokio::net::TcpListener::bind(addr).await {
-            Ok(listener) => {
-                let bound = listener.local_addr().unwrap_or(addr);
-                info!(%bound, "listening");
-                listeners.push(listener);
-            }
-            Err(err) => {
-                tracing::warn!(%addr, error = %err, "bind failed");
-                last_err = Some((addr, err));
-            }
-        }
-    }
-
-    match listeners.len() {
-        0 => {
-            let (addr, err) = last_err.expect("listen_addrs is never empty");
-            Err(err).with_context(|| format!("bind {addr}"))
-        }
-        1 => axum::serve(listeners.remove(0), app)
-            .await
-            .context("serve http"),
-        _ => {
-            let v6 = listeners.remove(0);
-            let v4 = listeners.remove(0);
-            let app_v4 = app.clone();
-            tokio::select! {
-                result = axum::serve(v6, app) => result.context("serve http"),
-                result = axum::serve(v4, app_v4) => result.context("serve http"),
-            }
-        }
-    }
+    let addr = config::listen_addr(host, port);
+    let listener = tokio::net::TcpListener::bind(addr)
+        .await
+        .with_context(|| format!("bind {addr}"))?;
+    let bound = listener.local_addr().unwrap_or(addr);
+    info!(%bound, "listening");
+    axum::serve(listener, app).await.context("serve http")
 }
 
 fn init_tracing() {
