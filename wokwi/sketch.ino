@@ -27,7 +27,7 @@ const char* WIFI_PASS = "";
 const char* API_HOST = "https://conserve-naija-production.up.railway.app";
 const char* DEVICE_KEY = "cn-dev-yaba-device-key";
 const char* MATERIAL = "plastic";
-const char* FIRMWARE = "wokwi-0.3.5";
+const char* FIRMWARE = "wokwi-0.3.6";
 const uint32_t WIFI_RETRY_MS = 15000;
 const uint32_t HTTP_TIMEOUT_MS = 4000;
 const uint32_t TLS_HANDSHAKE_S = 10;
@@ -284,7 +284,9 @@ void setup() {
   lcd.createChar(0, enterGlyph);
   show("CONSERVE NAIJA", "Connecting WiFi", "", "");
   WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS, 6);
+  // Scan for Wokwi-GUEST. Pinning channel 6 skips the scan and misses the
+  // AP when the viewer/gateway is not on 6 (public viewer and VS Code).
+  WiFi.begin(WIFI_SSID, WIFI_PASS);
   unsigned long wifiStart = millis();
   while (WiFi.status() != WL_CONNECTED) {
     delay(250);
@@ -293,7 +295,7 @@ void setup() {
       show("NO WIFI", "Can't get online", "Trying again", "");
       WiFi.disconnect();
       delay(400);
-      WiFi.begin(WIFI_SSID, WIFI_PASS, 6);
+      WiFi.begin(WIFI_SSID, WIFI_PASS);
       wifiStart = millis();
     }
   }
