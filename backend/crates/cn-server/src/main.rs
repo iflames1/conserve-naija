@@ -48,6 +48,16 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
             }
+
+            let sessions = cn_server::data::sessions::PgSessionRepo::new(pool);
+            let mut ticker = tokio::time::interval(Duration::from_secs(2 * 60));
+            ticker.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+            loop {
+                ticker.tick().await;
+                if let Err(err) = sessions.expire_stale().await {
+                    tracing::warn!(error = %err, "session janitor failed");
+                }
+            }
         });
     }
 

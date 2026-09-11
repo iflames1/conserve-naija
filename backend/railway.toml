@@ -13,5 +13,8 @@ dockerfilePath = "Dockerfile"
 # this at /ready — that waits on Postgres.
 healthcheckPath = "/health"
 healthcheckTimeout = 30
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 5
+# Keep the API always on. Serverless sleep is inbound-blind (see root railway.toml).
+sleepApplication = false
+numReplicas = 1
+restartPolicyType = "ALWAYS"
+restartPolicyMaxRetries = 10

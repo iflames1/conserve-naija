@@ -89,7 +89,7 @@ A 2.5 kg plastic deposit at ₦100/kg awards **250 Green Points**.
 Postgres runs as its own Docker service on Railway.
 
 1. **Postgres** — new Railway service from this repo. In that service: Settings → Root Directory = `infra/postgres`. Volume at `/var/lib/postgresql/data`. Set `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB=conserve_naija`.
-2. **cn-server** — new Railway service from this repo (root is fine; `Dockerfile` + `railway.toml` at the repo root build the Rust API). Set:
+2. **cn-server** — new Railway service from this repo (root is fine; `Dockerfile` + `railway.toml` at the repo root build the Rust API). `railway.toml` sets `sleepApplication = false` so Railway Serverless does not stop the replica after idle. Confirm Settings → Deploy → Serverless is off. Set:
    - `DATABASE_URL=postgres://USER:PASSWORD@<postgres-private-host>:5432/conserve_naija`
    - `HOST=0.0.0.0` and `PORT` (Railway injects `PORT`)
    - `APP_URL` — public site origin (JWKS)

@@ -12,5 +12,10 @@ dockerfilePath = "Dockerfile"
 # this at /ready — that waits on Postgres.
 healthcheckPath = "/health"
 healthcheckTimeout = 30
-restartPolicyType = "ON_FAILURE"
-restartPolicyMaxRetries = 5
+# Railway Serverless (formerly App Sleeping) stops the replica after ~10 min
+# with no outbound packets. Inbound /health does not count. Cold boot then
+# hangs past the app's 8s fetch abort ("signal timed out").
+sleepApplication = false
+numReplicas = 1
+restartPolicyType = "ALWAYS"
+restartPolicyMaxRetries = 10
