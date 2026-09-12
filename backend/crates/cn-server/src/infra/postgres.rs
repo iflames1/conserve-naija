@@ -23,8 +23,11 @@ fn migrations_dir() -> PathBuf {
 }
 
 fn pool_options() -> PgPoolOptions {
+    // Keep one live connection. Default min is 0, so the pool can go fully
+    // idle and Postgres logs "SSL error: unexpected eof" when the proxy RST's it.
     PgPoolOptions::new()
         .max_connections(10)
+        .min_connections(1)
         .acquire_timeout(ACQUIRE_TIMEOUT)
 }
 
