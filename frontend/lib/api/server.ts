@@ -22,13 +22,8 @@ function getApiBaseUrl() {
     return apiUrl()
 }
 
-const API_TIMEOUT_MS = 8_000
-
 function apiRequest(url: string, init?: RequestInit) {
-    return fetch(url, {
-        ...init,
-        signal: init?.signal ?? AbortSignal.timeout(API_TIMEOUT_MS),
-    })
+    return fetch(url, init)
 }
 
 async function authHeaders(): Promise<HeadersInit> {
