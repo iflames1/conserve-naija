@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 
 import { AppHeader } from "@/components/common/app-header"
+import { MachineKiosk } from "@/components/home/machine-kiosk"
 import { MissionStart } from "@/components/home/mission-start"
 
 export const metadata: Metadata = {
@@ -30,41 +31,12 @@ export default function Page() {
                         <MissionStart />
                     </div>
                 </div>
-                <div className="relative min-h-[23rem] overflow-hidden rounded-3xl border border-border bg-grid p-6 sm:min-h-[30rem] sm:p-8">
-                    <div className="absolute inset-x-8 top-8 h-px bg-border-strong" />
-                    <div className="absolute right-8 bottom-8 left-8 h-px bg-border-strong" />
-                    <div className="absolute top-8 bottom-8 left-1/2 w-px bg-border-strong" />
-                    <div className="relative flex h-full flex-col justify-between">
-                        <div className="flex items-center justify-between text-xs tracking-[0.16em] text-muted-foreground uppercase">
-                            <span>Material loop</span>
-                            <span className="text-primary">01 — 04</span>
-                        </div>
-                        <div className="flex items-center justify-center">
-                            <div className="flex size-44 items-center justify-center rounded-full border border-primary/50 bg-primary/10 shadow-[0_0_80px_oklch(0.78_0.15_145_/_0.18)] sm:size-60">
-                                <div className="flex size-28 items-center justify-center rounded-full border border-primary/30 bg-background sm:size-40">
-                                    <span className="font-display text-5xl text-primary sm:text-6xl">
-                                        CP
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-5 text-sm">
-                            <div>
-                                <p className="text-muted-foreground">
-                                    Machine measured
-                                </p>
-                                <p className="mt-1 font-medium">
-                                    Every deposit
-                                </p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground">
-                                    Value returned
-                                </p>
-                                <p className="mt-1 font-medium">1 CP = ₦1</p>
-                            </div>
-                        </div>
-                    </div>
+                <div className="flex flex-col items-center gap-6">
+                    <MachineKiosk />
+                    <p className="max-w-xs text-center text-sm leading-6 text-muted-foreground">
+                        The machine measures what you bring, and your phone
+                        shows what it is worth. 1 CP = ₦1.
+                    </p>
                 </div>
             </section>
         </main>

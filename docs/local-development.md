@@ -163,8 +163,8 @@ Railway's default builder, using `railpack.json` there.
 
 `railpack.json` handles the monorepo layout: it installs Python and `uv`, runs
 `uv sync --project backend`, and starts the app with migrations applied first.
-The root `exclude` list keeps `_legacy_backup/`, `frontend/`, virtualenvs, and
-caches out of the build context.
+The root `exclude` list keeps `frontend/`, virtualenvs, and caches out of the
+build context.
 
 If you prefer the built image to be reproducible bit-for-bit, keep
 `uv.lock` committed — the install step runs `uv sync --frozen`, which fails rather
