@@ -2,6 +2,7 @@ import { Geist_Mono, Manrope } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { AppWsProvider } from "@/components/ws/app-ws-provider"
 import { cn } from "@/lib/utils"
 import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 
@@ -37,7 +38,9 @@ export default function RootLayout({
             )}
         >
             <body>
-                <ThemeProvider>{children}</ThemeProvider>
+                <ThemeProvider>
+                    <AppWsProvider>{children}</AppWsProvider>
+                </ThemeProvider>
             </body>
         </html>
     )
