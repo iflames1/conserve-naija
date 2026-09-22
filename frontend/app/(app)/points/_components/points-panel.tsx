@@ -29,7 +29,7 @@ export function PointsPanel() {
     }, [token])
 
     return (
-        <main className="mx-auto min-h-svh w-full max-w-3xl px-5 pt-6 pb-12 sm:px-8">
+        <main className="mx-auto flex min-h-svh w-full max-w-6xl flex-col px-5 pt-6 pb-12 sm:px-8 lg:px-12">
             <AppHeader active="points" />
 
             {hydrated && !token ? (

@@ -38,7 +38,7 @@ export default async function CollectionPointsPage() {
     const sites = await loadSites()
 
     return (
-        <main className="mx-auto min-h-svh w-full max-w-4xl px-5 pt-6 pb-12 sm:px-8">
+        <main className="mx-auto min-h-svh w-full max-w-6xl px-5 pt-6 pb-12 sm:px-8 lg:px-12">
             <AppHeader active="sites" />
             <section className="py-16">
                 <p className="text-sm font-medium tracking-[0.18em] text-primary uppercase">

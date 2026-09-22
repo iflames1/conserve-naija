@@ -20,14 +20,14 @@ const steps = [
 
 export default function HowItWorksPage() {
     return (
-        <main className="mx-auto min-h-svh max-w-4xl px-5 py-16 sm:px-8">
+        <main className="mx-auto min-h-svh w-full max-w-6xl px-5 py-16 sm:px-8 lg:px-12">
             <Link className="font-display" href="/">
                 Conserve Naija
             </Link>
-            <h1 className="mt-20 font-display text-5xl tracking-tight">
+            <h1 className="mt-20 max-w-3xl font-display text-5xl tracking-tight">
                 A clear path from material to value.
             </h1>
-            <div className="mt-12 divide-y divide-border border-y border-border">
+            <div className="mt-12 max-w-3xl divide-y divide-border border-y border-border">
                 {steps.map(([number, title, copy]) => (
                     <div
                         key={number}
