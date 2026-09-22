@@ -156,11 +156,12 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
             {"material": "glass", "weight_kg": GLASS_GRAMS / 1000},
         ]
     }
-    key = f"smoke-{stamp}"
+    # No idempotency-key header: the shipped firmware does not send one, and
+    # requiring it returned 422 on every deposit.
     deposit = client.post(
         f"{MACHINE}/sessions/{session_id}/measurement",
         json=payload,
-        headers={**DEVICE_HEADERS, "idempotency-key": key},
+        headers=DEVICE_HEADERS,
     )
     check("deposit confirmed", deposit.status_code, 200)
     check(
@@ -172,7 +173,7 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
     replay = client.post(
         f"{MACHINE}/sessions/{session_id}/measurement",
         json=payload,
-        headers={**DEVICE_HEADERS, "idempotency-key": key},
+        headers=DEVICE_HEADERS,
     )
     check(
         "machine retry is idempotent",

@@ -80,8 +80,8 @@ async def device_telemetry(
         MachineTelemetry(
             machine_id=machine.record.id,
             recorded_at=sa_func.now(),
-            latitude=request.latitude,
-            longitude=request.longitude,
+            latitude=request.resolved_latitude,
+            longitude=request.resolved_longitude,
             payload=request.model_dump(),
         )
     )
@@ -137,12 +137,17 @@ async def progress_session(
 async def submit_measurement(
     session_id: str,
     request: MeasurementRequest,
-    idempotency_key: str = Header(min_length=1, max_length=160),
+    idempotency_key: str | None = Header(default=None, max_length=160),
     machine: AuthenticatedMachine = Depends(authenticated_machine),
     db: AsyncSession = Depends(get_db),
 ) -> MachineDepositResult:
+    # The optional header keeps machine retries safe, but the shipped firmware
+    # does not send one. A session produces exactly one deposit, so the session
+    # id is a sound fallback: a retried measurement matches its original deposit
+    # instead of being rejected or awarding Conserve Points twice.
+    key = idempotency_key or f"session:{session_id}"
     outcome = await recycling.confirm_measurement(
-        db, machine.record, uuid.UUID(session_id), request, idempotency_key
+        db, machine.record, uuid.UUID(session_id), request, key
     )
     if outcome.user_id is not None:
         # The citizen's app consumes this event, so it keeps the app's
