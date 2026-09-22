@@ -157,7 +157,18 @@ Install command: `bun install`
 
 ## Railway backend deployment
 
-Create a Railway service from this repository with the **Root Directory** set to `backend`. Railway uses `backend/Dockerfile` and `backend/railway.toml`.
+Create a Railway service from this repository and leave **Root Directory at the
+repository root**. The backend is built by [Railpack](https://railpack.com),
+Railway's default builder, using `railpack.json` there.
+
+`railpack.json` handles the monorepo layout: it installs Python and `uv`, runs
+`uv sync --project backend`, and starts the app with migrations applied first.
+The root `exclude` list keeps `_legacy_backup/`, `frontend/`, virtualenvs, and
+caches out of the build context.
+
+If you prefer the built image to be reproducible bit-for-bit, keep
+`uv.lock` committed — the install step runs `uv sync --frozen`, which fails rather
+than silently resolving different versions.
 
 Provision a Railway PostgreSQL service, then set these backend variables:
 
@@ -174,7 +185,26 @@ Notes:
 - `DATABASE_URL` must use the `postgresql+asyncpg://` scheme. Railway exposes a `postgresql://` URL, so replace the scheme and keep the credentials, host, port, and database.
 - `CORS_ORIGINS` must list your Vercel origin, or the browser will block API calls.
 - `ADMIN_EMAILS` grants the platform administrator role on sign-up or sign-in. It is the only way an admin is created — no admin password is ever seeded.
-- Setting `ENVIRONMENT=production` also prevents the local demo citizen from being seeded, so no account with a published password exists in production.
+- Setting `ENVIRONMENT=production` also prevents the local demo citizen from being seeded, so no account with a published password exists in production. On a database that was already seeded locally, that account still exists; delete it or use a fresh database.
 - Do not commit a real `.env`. Set these values in the Railway dashboard.
 
-The Docker command runs `alembic upgrade head` before Uvicorn starts. Railway health-checks `/health` on port `8080` (or its injected `PORT`). Never use the local demo password or the local JWT secret in Railway.
+The start command runs `alembic upgrade head` before Uvicorn. The service listens
+on Railway's injected `PORT`. Railway health-checks `/health`; never use the local
+demo password or the local JWT secret in Railway.
+
+### Verifying the backend build locally
+
+`railpack.json` can be checked before pushing. With the Railpack CLI installed:
+
+```sh
+railpack build . --show-plan
+```
+
+That prints the resolved packages, steps, and start command without building
+anything. A full build needs BuildKit:
+
+```sh
+docker run --rm --privileged -d --name buildkit moby/buildkit
+export BUILDKIT_HOST='docker-container://buildkit'
+railpack build . --name conserve-naija-backend
+```

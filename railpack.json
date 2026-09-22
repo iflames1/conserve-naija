@@ -1,0 +1,46 @@
+{
+    "$schema": "https://schema.railpack.com",
+    "provider": "python",
+    "packages": {
+        "python": "3.12",
+        "uv": "latest"
+    },
+    "exclude": [
+        ".git",
+        ".plans",
+        ".venv",
+        "_legacy_backup",
+        "**/.venv",
+        "**/node_modules",
+        "**/__pycache__",
+        "**/.pytest_cache",
+        "**/.ruff_cache",
+        "**/.mypy_cache",
+        "backend/target",
+        "frontend/.next",
+        ".env",
+        ".env.*"
+    ],
+    "steps": {
+        "install": {
+            "inputs": [
+                { "step": "packages:mise" },
+                {
+                    "local": true,
+                    "include": ["backend"],
+                    "exclude": [
+                        "backend/.venv",
+                        "backend/target",
+                        "backend/.pytest_cache",
+                        "backend/.ruff_cache",
+                        "backend/.mypy_cache"
+                    ]
+                }
+            ],
+            "commands": ["uv sync --frozen --no-dev --project backend"]
+        }
+    },
+    "deploy": {
+        "startCommand": "cd backend && uv run --no-sync alembic upgrade head && uv run --no-sync uvicorn conserve_naija.main:app --host 0.0.0.0 --port ${PORT:-8080}"
+    }
+}
