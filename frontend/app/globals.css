@@ -5,8 +5,10 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
-    --font-sans: var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --font-heading:
+        var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
+    --font-sans:
+        var(--font-manrope), "Manrope", ui-sans-serif, system-ui, sans-serif;
     --color-success: var(--success);
     --color-warning: var(--warning);
     --color-live: var(--live);
