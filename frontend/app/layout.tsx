@@ -1,10 +1,19 @@
-import { Geist_Mono, Inter } from "next/font/google"
+import { Geist_Mono, Manrope } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { cn } from "@/lib/utils"
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-sans" })
+export const metadata = {
+    title: {
+        default: SITE_NAME,
+        template: `%s | ${SITE_NAME}`,
+    },
+    description: SITE_DESCRIPTION,
+}
+
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" })
 
 const fontMono = Geist_Mono({
     subsets: ["latin"],
@@ -24,7 +33,7 @@ export default function RootLayout({
                 "antialiased",
                 fontMono.variable,
                 "font-sans",
-                inter.variable
+                manrope.variable
             )}
         >
             <body>
