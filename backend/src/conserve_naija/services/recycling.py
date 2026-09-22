@@ -1,6 +1,7 @@
 """Transactional recycling session and deposit operations."""
 
 import uuid
+from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from fastapi import HTTPException, status
@@ -22,6 +23,20 @@ from conserve_naija.models import (
     SiteInventory,
     SiteMaterial,
 )
+
+
+@dataclass(frozen=True, slots=True)
+class DepositOutcome:
+    """Backend-computed result of a confirmed deposit.
+
+    Carries the values the API returns so callers never read ORM relationships
+    after the session closes.
+    """
+
+    deposit_id: uuid.UUID
+    conserve_points: int
+    fractions: list[dict[str, int | str]]
+    status: str
 
 
 async def start_session(db: AsyncSession, user_id: uuid.UUID) -> tuple[RecyclingSession, str]:
@@ -82,15 +97,42 @@ async def confirm_measurement(
     session_id: uuid.UUID,
     request: MeasurementRequest,
     idempotency_key: str,
-) -> Deposit:
+) -> DepositOutcome:
     session = await _machine_session(db, machine, session_id)
+    # Idempotency is resolved before the state check so a machine retry after a
+    # lost response returns the original confirmed deposit rather than an error.
+    duplicate = await db.scalar(
+        select(Deposit).where(
+            Deposit.idempotency_key == idempotency_key, Deposit.session_id == session.id
+        )
+    )
+    if duplicate is not None:
+        # A repeated machine request must return the original result without
+        # awarding Conserve Points a second time.
+        rows = (
+            await db.execute(
+                select(DepositFraction, Material.slug)
+                .join(Material, Material.id == DepositFraction.material_id)
+                .where(DepositFraction.deposit_id == duplicate.id)
+            )
+        ).all()
+        return DepositOutcome(
+            deposit_id=duplicate.id,
+            conserve_points=sum(fraction.conserve_points for fraction, _ in rows),
+            fractions=[
+                {
+                    "material": slug,
+                    "weight_grams": fraction.weight_grams,
+                    "conserve_points": fraction.conserve_points,
+                }
+                for fraction, slug in rows
+            ],
+            status=duplicate.status,
+        )
     if session.status not in {SessionStatus.SORTING, SessionStatus.MEASURING}:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Session is not ready for measurement"
         )
-    duplicate = await db.scalar(select(Deposit).where(Deposit.idempotency_key == idempotency_key))
-    if duplicate is not None:
-        return duplicate
     if session.site_id is None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT, detail="Session has no Conserve Site"
@@ -179,8 +221,19 @@ async def confirm_measurement(
     )
     session.status = transition(session.status, SessionStatus.COMPLETED)
     await db.commit()
-    await db.refresh(deposit)
-    return deposit
+    return DepositOutcome(
+        deposit_id=deposit.id,
+        conserve_points=total,
+        fractions=[
+            {
+                "material": material.slug,
+                "weight_grams": grams,
+                "conserve_points": points,
+            }
+            for material, grams, _, points in fractions
+        ],
+        status=deposit.status,
+    )
 
 
 async def _machine_session(

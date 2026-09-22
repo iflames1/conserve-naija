@@ -253,21 +253,14 @@ async def submit_measurement(
     machine: AuthenticatedMachine = Depends(authenticated_machine),
     db: AsyncSession = Depends(get_db),
 ) -> DepositResult:
-    deposit = await recycling.confirm_measurement(
+    outcome = await recycling.confirm_measurement(
         db, machine.record, uuid.UUID(session_id), request, idempotency_key
     )
     return DepositResult(
-        deposit_id=deposit.id,
-        conserve_points=sum(fraction.conserve_points for fraction in deposit.fractions),
-        fractions=[
-            {
-                "material_id": fraction.material_id,
-                "weight_grams": fraction.weight_grams,
-                "conserve_points": fraction.conserve_points,
-            }
-            for fraction in deposit.fractions
-        ],
-        status=deposit.status,
+        deposit_id=outcome.deposit_id,
+        conserve_points=outcome.conserve_points,
+        fractions=outcome.fractions,
+        status=outcome.status,
     )
 
 
