@@ -23,4 +23,4 @@ RUN uv sync --frozen --no-dev
 ENV PORT=8080
 EXPOSE 8080
 
-CMD ["sh", "-c", "uvicorn conserve_naija.main:app --host 0.0.0.0 --port ${PORT}"]
+CMD ["sh", "-c", "alembic upgrade head && uvicorn conserve_naija.main:app --host 0.0.0.0 --port ${PORT}"]
