@@ -1,5 +1,6 @@
 """Seed the single public Conserve Site and development machine."""
 
+import os
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
@@ -22,6 +23,15 @@ MATERIAL_IDS = [
     "00000000-0000-7000-8000-000000000012",
     "00000000-0000-7000-8000-000000000013",
 ]
+
+
+def _seed_demo_citizen() -> bool:
+    """Whether to create the demo account.
+
+    The demo citizen has a published password, so it must never exist outside
+    local development. Production accounts are created through sign-up.
+    """
+    return os.getenv("ENVIRONMENT", "local").lower() not in {"production", "prod"}
 
 
 def _table(name: str, *columns: sa.ColumnClause) -> sa.TableClause:
@@ -125,24 +135,25 @@ def upgrade() -> None:
             }
         ],
     )
-    op.bulk_insert(
-        users,
-        [
-            {
-                "id": USER_ID,
-                "email": "demo@conserve-naija.local",
-                "display_name": "Demo Citizen",
-                "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$LiZWI8AM+gD/IGHftCNRbQ$ArWZJ3349QXbk/PybBQ9erQlWR5OmqCcgUV4k//6Ezg",
-                "created_at": now,
-                "updated_at": now,
-            }
-        ],
-    )
-    op.bulk_insert(roles, [{"user_id": USER_ID, "role": "citizen"}])
-    op.bulk_insert(
-        members,
-        [{"organisation_id": ORG_ID, "user_id": USER_ID, "role": "admin"}],
-    )
+    if _seed_demo_citizen():
+        op.bulk_insert(
+            users,
+            [
+                {
+                    "id": USER_ID,
+                    "email": "demo@conserve-naija.local",
+                    "display_name": "Demo Citizen",
+                    "password_hash": "$argon2id$v=19$m=65536,t=3,p=4$LiZWI8AM+gD/IGHftCNRbQ$ArWZJ3349QXbk/PybBQ9erQlWR5OmqCcgUV4k//6Ezg",
+                    "created_at": now,
+                    "updated_at": now,
+                }
+            ],
+        )
+        op.bulk_insert(roles, [{"user_id": USER_ID, "role": "citizen"}])
+        op.bulk_insert(
+            members,
+            [{"organisation_id": ORG_ID, "user_id": USER_ID, "role": "admin"}],
+        )
     op.bulk_insert(
         sites,
         [

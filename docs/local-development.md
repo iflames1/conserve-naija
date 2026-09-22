@@ -169,4 +169,12 @@ ENVIRONMENT=production
 ADMIN_EMAILS=you@example.com
 ```
 
+Notes:
+
+- `DATABASE_URL` must use the `postgresql+asyncpg://` scheme. Railway exposes a `postgresql://` URL, so replace the scheme and keep the credentials, host, port, and database.
+- `CORS_ORIGINS` must list your Vercel origin, or the browser will block API calls.
+- `ADMIN_EMAILS` grants the platform administrator role on sign-up or sign-in. It is the only way an admin is created — no admin password is ever seeded.
+- Setting `ENVIRONMENT=production` also prevents the local demo citizen from being seeded, so no account with a published password exists in production.
+- Do not commit a real `.env`. Set these values in the Railway dashboard.
+
 The Docker command runs `alembic upgrade head` before Uvicorn starts. Railway health-checks `/health` on port `8080` (or its injected `PORT`). Never use the local demo password or the local JWT secret in Railway.
