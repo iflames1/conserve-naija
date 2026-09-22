@@ -9,7 +9,6 @@
         ".git",
         ".plans",
         ".venv",
-        "_legacy_backup",
         "**/.venv",
         "**/node_modules",
         "**/__pycache__",

@@ -1,5 +1,5 @@
-# Local-only reference archive of the pre-rebuild codebase.
-# Kept on disk for UI/domain reference, never committed: history already holds it.
+# The pre-rebuild code lives in git history, not on disk. This keeps a
+# locally restored archive from ever entering the tree.
 _legacy_backup/
 
 # Planning artefacts

@@ -20,6 +20,24 @@ def _as_list(value: Any) -> Any:
     return value
 
 
+ASYNC_PG_DRIVER = "postgresql+asyncpg"
+
+
+def _force_async_driver(url: str) -> str:
+    """Rewrite a PostgreSQL URL to the async driver this app uses.
+
+    Hosting providers (Railway included) hand out a synchronous
+    ``postgresql://`` URL. SQLAlchemy would then reach for psycopg2, which is not
+    installed, and the process dies on startup. Forcing the driver keeps the
+    provider's values working without anyone hand-editing the scheme.
+    """
+    if url.startswith(("postgres://", "postgresql://", "postgresql+")):
+        _, separator, remainder = url.partition("://")
+        if separator:
+            return f"{ASYNC_PG_DRIVER}://{remainder}"
+    return url
+
+
 class Settings(BaseSettings):
     """Application settings.
 
@@ -44,6 +62,11 @@ class Settings(BaseSettings):
     @classmethod
     def _parse_list(cls, value: Any) -> Any:
         return _as_list(value)
+
+    @field_validator("database_url", mode="after")
+    @classmethod
+    def _normalise_database_url(cls, value: str) -> str:
+        return _force_async_driver(value)
 
     @field_validator("admin_emails", mode="after")
     @classmethod
