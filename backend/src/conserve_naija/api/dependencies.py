@@ -52,16 +52,16 @@ async def authenticated_machine(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Device credential required"
         )
-    credential = authorization.removeprefix("Device ")
-    try:
+    credential = authorization.removeprefix("Device ").strip()
+    if ":" in credential:
         external_id, secret = credential.split(":", maxsplit=1)
-    except ValueError as error:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid device credential"
-        ) from error
+        machines = await db.scalars(select(Machine).where(Machine.external_id == external_id))
+    else:
+        secret = credential
+        machines = await db.scalars(select(Machine))
 
-    machine = await db.scalar(select(Machine).where(Machine.external_id == external_id))
-    if machine is None or machine.status != "active":
+    machine = next((candidate for candidate in machines if candidate.status == "active"), None)
+    if machine is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Machine unavailable")
     try:
         _password_hasher.verify(machine.credential_hash, secret)
