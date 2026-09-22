@@ -25,6 +25,7 @@ from conserve_naija.api.schemas import (
     StartSessionRequest,
     TelemetryRequest,
 )
+from conserve_naija.api.websocket import broker
 from conserve_naija.db.session import get_db
 from conserve_naija.models import (
     ConserveSite,
@@ -172,6 +173,11 @@ async def claim_session(
     db: AsyncSession = Depends(get_db),
 ) -> SessionResponse:
     session = await recycling.claim_session(db, machine.record, request.code)
+    await broker.publish(
+        session.user_id,
+        "session.updated",
+        {"id": str(session.id), "status": session.status},
+    )
     return SessionResponse(id=session.id, status=session.status)
 
 
@@ -237,6 +243,11 @@ async def progress_session(
     db: AsyncSession = Depends(get_db),
 ) -> SessionResponse:
     session = await recycling.mark_sorting(db, machine.record, uuid.UUID(session_id))
+    await broker.publish(
+        session.user_id,
+        "session.updated",
+        {"id": str(session.id), "status": session.status},
+    )
     return SessionResponse(id=session.id, status=session.status)
 
 
@@ -256,6 +267,18 @@ async def submit_measurement(
     outcome = await recycling.confirm_measurement(
         db, machine.record, uuid.UUID(session_id), request, idempotency_key
     )
+    if outcome.user_id is not None:
+        await broker.publish(
+            outcome.user_id,
+            "session.updated",
+            {
+                "id": str(outcome.session_id),
+                "status": "completed",
+                "deposit_id": str(outcome.deposit_id),
+                "conserve_points": outcome.conserve_points,
+                "fractions": outcome.fractions,
+            },
+        )
     return DepositResult(
         deposit_id=outcome.deposit_id,
         conserve_points=outcome.conserve_points,

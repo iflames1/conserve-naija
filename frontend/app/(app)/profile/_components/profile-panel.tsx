@@ -6,10 +6,11 @@ import { useEffect, useState } from "react"
 import { AppHeader } from "@/components/common/app-header"
 import { Skeleton } from "@/components/ui/skeleton"
 import { apiFetch } from "@/lib/api"
-import { useAuthToken, type Profile } from "@/stores/auth"
+import { useAuthHydrated, useAuthToken, type Profile } from "@/stores/auth"
 
 export function ProfilePanel() {
     const token = useAuthToken()
+    const hydrated = useAuthHydrated()
     const [profile, setProfile] = useState<Profile | null>(null)
     const [error, setError] = useState<string | null>(null)
     const loading = Boolean(token) && !profile && !error
@@ -33,7 +34,7 @@ export function ProfilePanel() {
         <main className="mx-auto min-h-svh w-full max-w-3xl px-5 py-8 sm:px-8">
             <AppHeader active="profile" />
 
-            {!token ? (
+            {hydrated && !token ? (
                 <section className="py-20">
                     <h1 className="font-display text-4xl tracking-tight">
                         Your recycling record.

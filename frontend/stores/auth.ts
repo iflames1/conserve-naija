@@ -24,12 +24,14 @@ export type Profile = {
 type AuthState = {
     token: string | null
     profile: Profile | null
+    hydrated: boolean
     actions: {
         startSession: (
             endpoint: string,
             body: Record<string, unknown>
         ) => Promise<string>
         setProfile: (profile: Profile | null) => void
+        setHydrated: () => void
         signOut: () => void
     }
 }
@@ -39,6 +41,7 @@ export const useAuthStore = create<AuthState>()(
         (set) => ({
             token: null,
             profile: null,
+            hydrated: false,
             actions: {
                 startSession: async (endpoint, body) => {
                     const session = await apiFetch<{
@@ -53,6 +56,7 @@ export const useAuthStore = create<AuthState>()(
                     return profile.is_admin ? "/organisation" : "/deposit"
                 },
                 setProfile: (profile) => set({ profile }),
+                setHydrated: () => set({ hydrated: true }),
                 signOut: () => set({ token: null, profile: null }),
             },
         }),
@@ -62,11 +66,14 @@ export const useAuthStore = create<AuthState>()(
                 token: state.token,
                 profile: state.profile,
             }),
+            onRehydrateStorage: () => (state) => state?.actions.setHydrated(),
         }
     )
 )
 
 export const useAuthToken = () => useAuthStore((state) => state.token)
 export const useIsSignedIn = () => useAuthStore((state) => Boolean(state.token))
+/** False until persisted auth finishes restoring, to avoid signed-out flicker. */
+export const useAuthHydrated = () => useAuthStore((state) => state.hydrated)
 export const useProfile = () => useAuthStore((state) => state.profile)
 export const useAuthActions = () => useAuthStore((state) => state.actions)

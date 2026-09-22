@@ -6,7 +6,7 @@ import { useEffect, useState, type FormEvent } from "react"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ApiError, apiFetch } from "@/lib/api"
-import { useAuthToken } from "@/stores/auth"
+import { useAuthHydrated, useAuthToken } from "@/stores/auth"
 
 type Member = {
     user_id: string
@@ -27,6 +27,7 @@ const FIELD_CLASS =
 
 export function MembersPanel() {
     const token = useAuthToken()
+    const hydrated = useAuthHydrated()
     const [organisations, setOrganisations] = useState<Organisation[] | null>(
         null
     )
@@ -132,7 +133,7 @@ export function MembersPanel() {
         }
     }
 
-    if (!token) {
+    if (hydrated && !token) {
         return (
             <section className="py-10">
                 <h1 className="font-display text-4xl tracking-tight">
