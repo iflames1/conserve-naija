@@ -1,5 +1,6 @@
 import type { Metadata } from "next"
 
+import { AppHeader } from "@/components/common/app-header"
 import { MissionStart } from "@/components/home/mission-start"
 
 export const metadata: Metadata = {
@@ -11,12 +12,7 @@ export const metadata: Metadata = {
 export default function Page() {
     return (
         <main className="mx-auto flex min-h-svh w-full max-w-6xl flex-col px-5 pt-6 pb-10 sm:px-8 lg:px-12">
-            <header className="flex items-center justify-between">
-                <span className="font-display text-lg">Conserve Naija</span>
-                <span className="rounded-full border border-border px-3 py-1.5 text-xs text-muted-foreground">
-                    Lagos · Nigeria
-                </span>
-            </header>
+            <AppHeader />
             <section className="grid flex-1 items-center gap-12 py-20 lg:grid-cols-[1.05fr_0.95fr] lg:gap-24">
                 <div className="max-w-xl">
                     <p className="mb-5 text-sm font-medium tracking-[0.2em] text-primary uppercase">
@@ -34,10 +30,10 @@ export default function Page() {
                         <MissionStart />
                     </div>
                 </div>
-                <div className="bg-grid relative min-h-[23rem] overflow-hidden rounded-3xl border border-border p-6 sm:min-h-[30rem] sm:p-8">
-                    <div className="bg-border-strong absolute inset-x-8 top-8 h-px" />
-                    <div className="bg-border-strong absolute right-8 bottom-8 left-8 h-px" />
-                    <div className="bg-border-strong absolute top-8 bottom-8 left-1/2 w-px" />
+                <div className="relative min-h-[23rem] overflow-hidden rounded-3xl border border-border bg-grid p-6 sm:min-h-[30rem] sm:p-8">
+                    <div className="absolute inset-x-8 top-8 h-px bg-border-strong" />
+                    <div className="absolute right-8 bottom-8 left-8 h-px bg-border-strong" />
+                    <div className="absolute top-8 bottom-8 left-1/2 w-px bg-border-strong" />
                     <div className="relative flex h-full flex-col justify-between">
                         <div className="flex items-center justify-between text-xs tracking-[0.16em] text-muted-foreground uppercase">
                             <span>Material loop</span>

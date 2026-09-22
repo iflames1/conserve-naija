@@ -31,7 +31,7 @@ export default function CollectionPointsPage() {
                 <p className="text-sm font-medium tracking-[0.18em] text-primary uppercase">
                     Find a site
                 </p>
-                <h1 className="font-display mt-4 text-5xl tracking-tight">
+                <h1 className="mt-4 font-display text-5xl tracking-tight">
                     Bring it back to the loop.
                 </h1>
                 <p className="mt-4 max-w-xl text-lg leading-8 text-muted-foreground">
@@ -42,7 +42,7 @@ export default function CollectionPointsPage() {
                     {sites.map((site) => (
                         <article
                             key={site.name}
-                            className="surface-raised rounded-2xl border border-border p-6"
+                            className="rounded-2xl border border-border p-6 surface-raised"
                         >
                             <div className="flex flex-wrap items-start justify-between gap-5">
                                 <div>

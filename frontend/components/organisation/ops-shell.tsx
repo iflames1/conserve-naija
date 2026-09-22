@@ -1,10 +1,13 @@
 import Link from "next/link"
 
+import { Brand } from "@/components/common/brand"
+
 const navigation = [
     ["Overview", "/organisation"],
     ["Conserve Sites", "/organisation/sites"],
     ["Inventory", "/organisation/inventory"],
     ["Pickups", "/organisation/pickups"],
+    ["Members", "/organisation/members"],
 ]
 
 export function OpsShell({ children }: { children: React.ReactNode }) {
@@ -12,10 +15,8 @@ export function OpsShell({ children }: { children: React.ReactNode }) {
         <main className="mx-auto min-h-svh w-full max-w-7xl px-5 pt-6 pb-12 sm:px-8 lg:px-12">
             <header className="flex flex-wrap items-center justify-between gap-4 border-b border-border pb-5">
                 <div>
-                    <Link href="/" className="font-display text-lg">
-                        Conserve Naija
-                    </Link>
-                    <p className="mt-1 text-sm text-muted-foreground">
+                    <Brand />
+                    <p className="mt-1.5 text-sm text-muted-foreground">
                         Organisation operations
                     </p>
                 </div>

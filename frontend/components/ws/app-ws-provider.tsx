@@ -3,13 +3,14 @@
 import { useEffect } from "react"
 
 import { appSocket } from "@/lib/ws/app-socket"
+import { useAuthToken } from "@/stores/auth"
 import { useLiveActions } from "@/stores/live"
 
 export function AppWsProvider({ children }: { children: React.ReactNode }) {
     const { setLastEvent } = useLiveActions()
+    const token = useAuthToken()
 
     useEffect(() => {
-        const token = window.localStorage.getItem("conserve-naija-token")
         if (!token) return
         appSocket.connect(token)
         const unsubscribe = appSocket.subscribe((message) =>
@@ -18,7 +19,7 @@ export function AppWsProvider({ children }: { children: React.ReactNode }) {
         return () => {
             unsubscribe()
         }
-    }, [setLastEvent])
+    }, [token, setLastEvent])
 
     return children
 }

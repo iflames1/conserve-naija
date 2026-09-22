@@ -9,7 +9,7 @@ export default function AboutPage() {
             <Link className="font-display" href="/">
                 Conserve Naija
             </Link>
-            <h1 className="font-display mt-20 text-5xl">
+            <h1 className="mt-20 font-display text-5xl">
                 Keeping resources in circulation.
             </h1>
             <p className="mt-6 text-lg leading-8 text-muted-foreground">

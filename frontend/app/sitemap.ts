@@ -8,8 +8,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
         "/",
         "/about",
         "/how-it-works",
-        "/explore",
         "/collection-points",
+        "/auth/login",
+        "/auth/sign-up",
     ].map((path) => ({
         url: `${origin}${path}`,
         lastModified: new Date(),

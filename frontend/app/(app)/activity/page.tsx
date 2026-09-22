@@ -13,7 +13,7 @@ export default function ActivityPage() {
                 <p className="text-sm tracking-[0.18em] text-primary uppercase">
                     Your activity
                 </p>
-                <h1 className="font-display mt-4 text-5xl">
+                <h1 className="mt-4 font-display text-5xl">
                     Every return counts.
                 </h1>
                 <p className="mt-5 text-muted-foreground">

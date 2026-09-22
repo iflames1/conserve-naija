@@ -14,7 +14,7 @@ export function MissionPanel() {
                     Conserve Naija
                 </span>
                 <span className="flex items-center gap-2">
-                    <span className="bg-live size-2 rounded-full" /> Waiting for
+                    <span className="size-2 rounded-full bg-live" /> Waiting for
                     machine
                 </span>
             </div>
@@ -31,7 +31,7 @@ export function MissionPanel() {
                         Your phone will update as the mission moves forward.
                     </p>
                 </div>
-                <div className="surface-raised border-border-strong rounded-2xl border p-6 sm:p-8">
+                <div className="rounded-2xl border border-border-strong p-6 surface-raised sm:p-8">
                     <div className="flex items-center justify-between text-sm text-muted-foreground">
                         <span className="flex items-center gap-2">
                             <Smartphone className="size-4" /> Conserve OTP

@@ -13,7 +13,7 @@ export default function PointsPage() {
                 <p className="text-sm tracking-[0.18em] text-primary uppercase">
                     Your balance
                 </p>
-                <h1 className="font-display mt-4 text-6xl">0 CP</h1>
+                <h1 className="mt-4 font-display text-6xl">0 CP</h1>
                 <p className="mt-5 text-muted-foreground">
                     Conserve Points are valued at ₦1 each for display and
                     valuation purposes.

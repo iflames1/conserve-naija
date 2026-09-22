@@ -5,47 +5,49 @@ import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
 import { Button } from "@/components/ui/button"
-import { useSessionActions } from "@/stores/session"
+import { ApiError, apiFetch } from "@/lib/api"
+import { useAuthToken } from "@/stores/auth"
+import { useSessionActions, type MissionStatus } from "@/stores/session"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080"
+type SessionResponse = {
+    id: string
+    status: MissionStatus
+    otp: string | null
+    otp_expires_at: string | null
+}
 
 export function MissionStart() {
     const router = useRouter()
+    const token = useAuthToken()
     const { setMission } = useSessionActions()
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
 
     function startMission() {
         setError(null)
-        if (!window.localStorage.getItem("conserve-naija-token")) {
+        if (!token) {
             router.push("/auth/login?next=/deposit")
             return
         }
         startTransition(async () => {
             try {
-                const response = await fetch(
-                    `${API_URL}/api/v1/recycling-sessions`,
-                    {
-                        method: "POST",
-                        headers: {
-                            "Content-Type": "application/json",
-                            Authorization: `Bearer ${window.localStorage.getItem("conserve-naija-token")}`,
-                        },
-                        body: "{}",
-                    }
+                const session = await apiFetch<SessionResponse>(
+                    "/api/v1/recycling-sessions",
+                    { method: "POST", body: {}, token }
                 )
-                if (!response.ok)
-                    throw new Error("We could not start a mission.")
-                const session = await response.json()
                 setMission({
                     id: session.id,
                     status: session.status,
-                    otp: session.otp,
-                    otpExpiresAt: session.otp_expires_at,
+                    otp: session.otp ?? undefined,
+                    otpExpiresAt: session.otp_expires_at ?? undefined,
                 })
                 router.push("/deposit")
             } catch (cause) {
-                setError(cause instanceof Error ? cause.message : "Try again.")
+                setError(
+                    cause instanceof ApiError
+                        ? cause.message
+                        : "We could not start a mission."
+                )
             }
         })
     }
