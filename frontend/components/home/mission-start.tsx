@@ -4,10 +4,15 @@ import { ArrowUpRight, LoaderCircle, Recycle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
 
+import { MissionDialog } from "@/components/home/mission-dialog"
 import { Button } from "@/components/ui/button"
 import { ApiError, apiFetch } from "@/lib/api"
 import { useAuthToken } from "@/stores/auth"
-import { useSessionActions, type MissionStatus } from "@/stores/session"
+import {
+    useMission,
+    useSessionActions,
+    type MissionStatus,
+} from "@/stores/session"
 
 type SessionResponse = {
     id: string
@@ -19,14 +24,20 @@ type SessionResponse = {
 export function MissionStart() {
     const router = useRouter()
     const token = useAuthToken()
+    const mission = useMission()
     const { setMission } = useSessionActions()
     const [isPending, startTransition] = useTransition()
     const [error, setError] = useState<string | null>(null)
+    // The mission is stored, so it survives a reload. Deriving visibility from
+    // it means the dialog reopens with the OTP rather than stranding the citizen
+    // with a code they can no longer see.
+    const [dismissed, setDismissed] = useState(false)
+    const open = Boolean(mission) && !dismissed
 
     function startMission() {
         setError(null)
         if (!token) {
-            router.push("/auth/login?next=/deposit")
+            router.push("/auth/login?next=/")
             return
         }
         startTransition(async () => {
@@ -41,7 +52,7 @@ export function MissionStart() {
                     otp: session.otp ?? undefined,
                     otpExpiresAt: session.otp_expires_at ?? undefined,
                 })
-                router.push("/deposit")
+                setDismissed(false)
             } catch (cause) {
                 setError(
                     cause instanceof ApiError
@@ -71,6 +82,10 @@ export function MissionStart() {
                 <ArrowUpRight className="size-5" />
             </Button>
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
+            <MissionDialog
+                open={open}
+                onOpenChange={(next) => setDismissed(!next)}
+            />
         </div>
     )
 }
