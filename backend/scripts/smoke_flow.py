@@ -162,15 +162,23 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
         headers={**DEVICE_HEADERS, "idempotency-key": key},
     )
     check("deposit confirmed", deposit.status_code, 200)
-    check("reward is backend calculated", deposit.json()["conserve_points"], EXPECTED_POINTS)
+    check(
+        "reward is backend calculated",
+        deposit.json()["conservePoints"],
+        EXPECTED_POINTS,
+    )
 
     replay = client.post(
         f"/api/v1/iot/devices/me/sessions/{session_id}/measurement",
         json=payload,
         headers={**DEVICE_HEADERS, "idempotency-key": key},
     )
-    check("machine retry is idempotent", replay.json()["deposit_id"], deposit.json()["deposit_id"])
-    check("retry does not double award", replay.json()["conserve_points"], EXPECTED_POINTS)
+    check(
+        "machine retry is idempotent",
+        replay.json()["depositId"],
+        deposit.json()["depositId"],
+    )
+    check("retry does not double award", replay.json()["conservePoints"], EXPECTED_POINTS)
     check(
         "Conserve OTP is single use",
         client.post(

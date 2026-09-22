@@ -15,9 +15,10 @@ from conserve_naija.api.dependencies import (
 )
 from conserve_naija.api.schemas import (
     ClaimSessionRequest,
-    DepositResult,
     DeviceResponse,
     HeartbeatRequest,
+    MachineDepositResult,
+    MachineFraction,
     MeasurementRequest,
     ProgressRequest,
     SessionResponse,
@@ -251,10 +252,10 @@ async def progress_session(
     return SessionResponse(id=session.id, status=session.status)
 
 
-@router.post("/device/sessions/{session_id}/measurement", response_model=DepositResult)
+@router.post("/device/sessions/{session_id}/measurement", response_model=MachineDepositResult)
 @router.post(
     "/iot/devices/me/sessions/{session_id}/measurement",
-    response_model=DepositResult,
+    response_model=MachineDepositResult,
     include_in_schema=False,
 )
 async def submit_measurement(
@@ -263,11 +264,13 @@ async def submit_measurement(
     idempotency_key: str = Header(min_length=1, max_length=160),
     machine: AuthenticatedMachine = Depends(authenticated_machine),
     db: AsyncSession = Depends(get_db),
-) -> DepositResult:
+) -> MachineDepositResult:
     outcome = await recycling.confirm_measurement(
         db, machine.record, uuid.UUID(session_id), request, idempotency_key
     )
     if outcome.user_id is not None:
+        # The citizen's app consumes this event, so it keeps the app's
+        # snake_case shape even though the machine reply is camelCase.
         await broker.publish(
             outcome.user_id,
             "session.updated",
@@ -279,10 +282,17 @@ async def submit_measurement(
                 "fractions": outcome.fractions,
             },
         )
-    return DepositResult(
+    return MachineDepositResult(
         deposit_id=outcome.deposit_id,
         conserve_points=outcome.conserve_points,
-        fractions=outcome.fractions,
+        fractions=[
+            MachineFraction(
+                material=str(fraction["material"]),
+                weight_grams=int(fraction["weight_grams"]),
+                conserve_points=int(fraction["conserve_points"]),
+            )
+            for fraction in outcome.fractions
+        ],
         status=outcome.status,
     )
 

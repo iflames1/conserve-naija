@@ -53,7 +53,10 @@ export const useAuthStore = create<AuthState>()(
                         token: session.token,
                     })
                     set({ profile })
-                    return profile.is_admin ? "/organisation" : "/deposit"
+                    // Everyone lands on the home page. A mission only exists
+                    // once it is started, so sending people to the mission
+                    // screen here would show an empty state.
+                    return "/"
                 },
                 setProfile: (profile) => set({ profile }),
                 setHydrated: () => set({ hydrated: true }),

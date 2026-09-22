@@ -81,6 +81,27 @@ teammate needs no migration or manual database edit.
 Administrators manage organisation access at `/organisation/members`, where they
 can add an existing account by email as a member or administrator.
 
+### How an administrator reaches operations
+
+There are no pre-created accounts. To become the first administrator:
+
+1. Set `ADMIN_EMAILS` on the backend (locally in `.env`, in production in the
+   Railway dashboard) and redeploy if it was already running.
+2. Sign up at `/auth/sign-up` using that exact email. Matching is
+   case-insensitive.
+3. The backend grants `admin` and administrator membership of the first
+   organisation at sign-up, and re-syncs it on every sign-in — so adding an email
+   later works for an account that already exists.
+4. **Operations** now appears in the navigation, and `/organisation` is
+   reachable. The check runs against `profile.is_admin`, so it works even before
+   organisation membership finishes syncing.
+
+From there, add other people by email at `/organisation/members`. They need an
+account first; the panel says so if the email is unknown.
+
+The frontend re-reads `/api/v1/auth/me` on mount, so a role granted while a
+session is open appears without signing out and back in.
+
 ## Start the frontend
 
 Open a second terminal in the repository root:
