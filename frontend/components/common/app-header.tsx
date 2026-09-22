@@ -1,7 +1,6 @@
 "use client"
 
 import Link from "next/link"
-import { useRouter } from "next/navigation"
 import { useEffect, useState, useSyncExternalStore } from "react"
 import { Menu } from "lucide-react"
 
@@ -27,7 +26,6 @@ import {
 const NAV_ITEMS = [
     { key: "sites", label: "Conserve Sites", href: "/collection-points" },
     { key: "activity", label: "Activity", href: "/activity" },
-    { key: "points", label: "Points", href: "/points" },
 ] as const
 
 const subscribe = () => () => {}
@@ -47,8 +45,7 @@ function useHydrated() {
 export function AppHeader({ active }: { active?: string }) {
     const hydrated = useHydrated()
     const profile = useProfile()
-    const { signOut, setProfile } = useAuthActions()
-    const router = useRouter()
+    const { setProfile } = useAuthActions()
     const token = useAuthToken()
     const [menuOpen, setMenuOpen] = useState(false)
 
@@ -69,12 +66,6 @@ export function AppHeader({ active }: { active?: string }) {
             active = false
         }
     }, [token, setProfile])
-
-    function handleSignOut() {
-        setMenuOpen(false)
-        signOut()
-        router.push("/")
-    }
 
     // A configured platform admin can always reach operations, even before
     // organisation membership has synced.
@@ -112,27 +103,18 @@ export function AppHeader({ active }: { active?: string }) {
                 ))}
 
                 {hydrated && signedIn ? (
-                    <button
-                        type="button"
-                        onClick={handleSignOut}
-                        className="ml-1 rounded-lg px-3 py-1.5 hover:text-foreground"
+                    <Link
+                        href="/profile"
+                        className={cn(
+                            "rounded-lg px-3 py-1.5 hover:text-foreground",
+                            active === "profile" && "bg-muted text-foreground"
+                        )}
                     >
-                        Sign out
-                    </button>
+                        {/* Sign out lives on the profile page. */}
+                        Profile
+                    </Link>
                 ) : hydrated ? (
                     <>
-                        <Link
-                            href="/profile"
-                            className={cn(
-                                buttonVariants({
-                                    variant: "ghost",
-                                    size: "sm",
-                                }),
-                                "rounded-lg"
-                            )}
-                        >
-                            Profile
-                        </Link>
                         <Link
                             href="/auth/login"
                             className={cn(
@@ -141,6 +123,18 @@ export function AppHeader({ active }: { active?: string }) {
                             )}
                         >
                             Sign in
+                        </Link>
+                        <Link
+                            href="/auth/sign-up"
+                            className={cn(
+                                buttonVariants({
+                                    variant: "ghost",
+                                    size: "sm",
+                                }),
+                                "rounded-lg"
+                            )}
+                        >
+                            Create account
                         </Link>
                     </>
                 ) : (
@@ -182,28 +176,16 @@ export function AppHeader({ active }: { active?: string }) {
                     </nav>
                     <div className="mt-auto flex flex-col gap-2 border-t border-border p-4">
                         {hydrated && signedIn ? (
-                            <>
-                                <Link
-                                    href="/profile"
-                                    onClick={() => setMenuOpen(false)}
-                                    className={cn(
-                                        buttonVariants({ variant: "outline" }),
-                                        "w-full rounded-xl"
-                                    )}
-                                >
-                                    Profile
-                                </Link>
-                                <button
-                                    type="button"
-                                    onClick={handleSignOut}
-                                    className={cn(
-                                        buttonVariants({ variant: "ghost" }),
-                                        "w-full rounded-xl"
-                                    )}
-                                >
-                                    Sign out
-                                </button>
-                            </>
+                            <Link
+                                href="/profile"
+                                onClick={() => setMenuOpen(false)}
+                                className={cn(
+                                    buttonVariants({ variant: "outline" }),
+                                    "w-full rounded-xl"
+                                )}
+                            >
+                                Profile
+                            </Link>
                         ) : hydrated ? (
                             <>
                                 <Link
