@@ -16,6 +16,9 @@ import time
 import httpx
 
 DEVICE_HEADERS = {"Authorization": "Device cn-dev-yaba-device-key"}
+# Exactly the paths the ESP32 firmware calls: root level, no /api/v1 prefix.
+# The canonical /api/v1/device/... shape exists too, but this is what ships.
+MACHINE = "/iot/devices/me"
 DEFAULT_PASSWORD = "smoke-password-123"
 PLASTIC_GRAMS = 2_500
 GLASS_GRAMS = 1_000
@@ -135,14 +138,12 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
     check("mission waits for machine", session["status"], "waiting_for_machine")
     check("Conserve OTP is six digits", len(otp), 6)
 
-    claimed = client.post(
-        "/api/v1/iot/devices/me/sessions/claim", json={"code": otp}, headers=DEVICE_HEADERS
-    )
+    claimed = client.post(f"{MACHINE}/sessions/claim", json={"code": otp}, headers=DEVICE_HEADERS)
     check("machine claims session", claimed.json()["status"], "connected")
     check(
         "machine reports sorting",
         client.post(
-            f"/api/v1/iot/devices/me/sessions/{session_id}/progress",
+            f"{MACHINE}/sessions/{session_id}/progress",
             json={"stage": "sorting"},
             headers=DEVICE_HEADERS,
         ).json()["status"],
@@ -157,7 +158,7 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
     }
     key = f"smoke-{stamp}"
     deposit = client.post(
-        f"/api/v1/iot/devices/me/sessions/{session_id}/measurement",
+        f"{MACHINE}/sessions/{session_id}/measurement",
         json=payload,
         headers={**DEVICE_HEADERS, "idempotency-key": key},
     )
@@ -169,7 +170,7 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
     )
 
     replay = client.post(
-        f"/api/v1/iot/devices/me/sessions/{session_id}/measurement",
+        f"{MACHINE}/sessions/{session_id}/measurement",
         json=payload,
         headers={**DEVICE_HEADERS, "idempotency-key": key},
     )
@@ -182,7 +183,7 @@ def run(client: httpx.Client, admin_email: str, password: str) -> None:
     check(
         "Conserve OTP is single use",
         client.post(
-            "/api/v1/iot/devices/me/sessions/claim", json={"code": otp}, headers=DEVICE_HEADERS
+            f"{MACHINE}/sessions/claim", json={"code": otp}, headers=DEVICE_HEADERS
         ).status_code,
         409,
     )
