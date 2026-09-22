@@ -67,10 +67,32 @@ class TelemetryBin(BaseModel):
     )
 
 
+class TelemetryLocation(BaseModel):
+    """Coordinates as the firmware nests them under ``location``."""
+
+    latitude: float | None = None
+    longitude: float | None = None
+
+
 class TelemetryRequest(BaseModel):
     latitude: float | None = None
     longitude: float | None = None
+    # The shipped firmware nests coordinates under `location`; the flat fields
+    # are kept for clients that send them directly.
+    location: TelemetryLocation | None = None
     bins: list[TelemetryBin] = Field(min_length=1, max_length=32)
+
+    @property
+    def resolved_latitude(self) -> float | None:
+        if self.location is not None and self.location.latitude is not None:
+            return self.location.latitude
+        return self.latitude
+
+    @property
+    def resolved_longitude(self) -> float | None:
+        if self.location is not None and self.location.longitude is not None:
+            return self.location.longitude
+        return self.longitude
 
 
 class ClaimSessionRequest(BaseModel):
