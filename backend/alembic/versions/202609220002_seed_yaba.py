@@ -138,10 +138,10 @@ def upgrade() -> None:
             }
         ],
     )
-    op.bulk_insert(roles, [{"user_id": USER_ID, "role": "citizen", "created_at": now}])
+    op.bulk_insert(roles, [{"user_id": USER_ID, "role": "citizen"}])
     op.bulk_insert(
         members,
-        [{"organisation_id": ORG_ID, "user_id": USER_ID, "role": "admin", "created_at": now}],
+        [{"organisation_id": ORG_ID, "user_id": USER_ID, "role": "admin"}],
     )
     op.bulk_insert(
         sites,

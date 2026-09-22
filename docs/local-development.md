@@ -24,9 +24,9 @@ The compose file creates:
 - database: `conserve_naija`
 - user: `conserve`
 - password: `conserve`
-- port: `5432`
+- host port: `5433` (container port remains `5432`)
 
-If port `5432` is already occupied by another PostgreSQL installation, stop that service or change the host port in `docker-compose.yml`. Do not point the app at an unknown existing database without checking its credentials first.
+The host port is `5433` because a local PostgreSQL installation commonly already owns `5432`. The backend connects to `localhost:5433`; PostgreSQL itself still listens on `5432` inside the Compose network.
 
 ## Start the backend
 
@@ -127,10 +127,10 @@ Create a Railway service from this repository with the **Root Directory** set to
 Provision a Railway PostgreSQL service, then set these backend variables:
 
 ```text
-CN_DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:<port>/<database>
-CN_JWT_SECRET=<long-random-secret>
-CN_CORS_ORIGINS=["https://<your-vercel-domain>"]
-CN_ENVIRONMENT=production
+DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:<port>/<database>
+JWT_SECRET=<long-random-secret>
+CORS_ORIGINS=["https://<your-vercel-domain>"]
+ENVIRONMENT=production
 ```
 
 The Docker command runs `alembic upgrade head` before Uvicorn starts. Railway health-checks `/health` on port `8080` (or its injected `PORT`). Never use the local demo password or the local JWT secret in Railway.
