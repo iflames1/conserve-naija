@@ -2,31 +2,25 @@
 
 import { create } from "zustand"
 
-import type { RecyclingSession } from "@/lib/api/types"
+import type { ConnectionStatus } from "@/lib/ws/app-socket"
 
 type LiveState = {
-    session: RecyclingSession | null
+    status: ConnectionStatus
+    lastEvent: string | null
     actions: {
-        setSession: (session: RecyclingSession | null) => void
-        patchSession: (session: RecyclingSession) => void
-        clearSession: () => void
+        setStatus: (status: ConnectionStatus) => void
+        setLastEvent: (kind: string) => void
     }
 }
 
 export const useLiveStore = create<LiveState>((set) => ({
-    session: null,
+    status: "idle",
+    lastEvent: null,
     actions: {
-        setSession: (session) => set({ session }),
-        patchSession: (session) =>
-            set((state) => {
-                if (!state.session || state.session.id === session.id) {
-                    return { session }
-                }
-                return state
-            }),
-        clearSession: () => set({ session: null }),
+        setStatus: (status) => set({ status }),
+        setLastEvent: (lastEvent) => set({ lastEvent }),
     },
 }))
 
-export const useLiveSession = () => useLiveStore((s) => s.session)
-export const useLiveActions = () => useLiveStore((s) => s.actions)
+export const useConnectionStatus = () => useLiveStore((state) => state.status)
+export const useLiveActions = () => useLiveStore((state) => state.actions)

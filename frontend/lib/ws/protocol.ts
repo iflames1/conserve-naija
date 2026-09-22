@@ -1,5 +1,3 @@
-/** Shared app WebSocket envelope — mirrors backend `routes::ws`. */
-
 export type WsEnvelope = {
     kind: string
     payload: Record<string, unknown>

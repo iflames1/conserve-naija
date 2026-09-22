@@ -1,9 +1,29 @@
+# Local-only reference archive of the pre-rebuild codebase.
+# Kept on disk for UI/domain reference, never committed: history already holds it.
+_legacy_backup/
+
+# Planning artefacts
+.plans/
+
 # Dependencies
 node_modules/
+
+# Next.js
 frontend/.next/
 frontend/out/
-target/
-**/*.rs.bk
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+backend/target/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Env and secrets
 .env

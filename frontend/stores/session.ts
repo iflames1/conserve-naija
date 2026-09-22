@@ -2,61 +2,46 @@
 
 import { create } from "zustand"
 
-import type { AppUser } from "@/lib/api/types"
+export type MissionStatus =
+    | "idle"
+    | "starting"
+    | "waiting_for_machine"
+    | "connected"
+    | "sorting"
+    | "measuring"
+    | "processing"
+    | "completed"
+    | "failed"
 
-export type UserStatsPatch = {
-    conservePointsBalance?: number
-    depositCount?: number
-    recycledKg?: number
+export type Mission = {
+    id: string
+    status: MissionStatus
+    otp?: string
+    otpExpiresAt?: string
 }
 
 type SessionState = {
-    user: AppUser | null
-    loading: boolean
+    mission: Mission | null
     actions: {
-        setUser: (user: AppUser | null) => void
-        setLoading: (loading: boolean) => void
-        patchBalance: (greenPointsBalance: number) => void
-        patchStats: (patch: UserStatsPatch) => void
+        setMission: (mission: Mission | null) => void
+        setStatus: (status: MissionStatus) => void
+        reset: () => void
     }
 }
 
 export const useSessionStore = create<SessionState>((set) => ({
-    user: null,
-    loading: true,
+    mission: null,
     actions: {
-        setUser: (user) => set({ user }),
-        setLoading: (loading) => set({ loading }),
-        patchBalance: (greenPointsBalance) =>
-            useSessionStore.getState().actions.patchStats({
-                conservePointsBalance: greenPointsBalance,
-            }),
-        patchStats: (patch) =>
-            set((state) => {
-                if (!state.user) return {}
-                const balance = patch.conservePointsBalance
-                return {
-                    user: {
-                        ...state.user,
-                        ...(typeof balance === "number"
-                            ? {
-                                  greenPointsBalance: balance,
-                                  conservePointsBalance: balance,
-                                  nairaValue: balance,
-                              }
-                            : {}),
-                        ...(typeof patch.depositCount === "number"
-                            ? { depositCount: patch.depositCount }
-                            : {}),
-                        ...(typeof patch.recycledKg === "number"
-                            ? { recycledKg: patch.recycledKg }
-                            : {}),
-                    },
-                }
-            }),
+        setMission: (mission) => set({ mission }),
+        setStatus: (status) =>
+            set((state) =>
+                state.mission
+                    ? { mission: { ...state.mission, status } }
+                    : state
+            ),
+        reset: () => set({ mission: null }),
     },
 }))
 
-export const useSessionUser = () => useSessionStore((s) => s.user)
-export const useSessionLoading = () => useSessionStore((s) => s.loading)
-export const useSessionActions = () => useSessionStore((s) => s.actions)
+export const useMission = () => useSessionStore((state) => state.mission)
+export const useSessionActions = () => useSessionStore((state) => state.actions)

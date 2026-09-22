@@ -1,0 +1,47 @@
+[project]
+name = "conserve-naija-backend"
+version = "0.1.0"
+description = "Conserve Naija backend: recycling sessions, machine measurements and the Conserve Points ledger."
+readme = "README.md"
+authors = [
+    { name = "Flames", email = "isaacomenuche@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "alembic>=1.14",
+    "argon2-cffi>=23.1",
+    "asyncpg>=0.30",
+    "fastapi>=0.115",
+    "pydantic-settings>=2.7",
+    "pyjwt>=2.10",
+    "sqlalchemy[asyncio]>=2.0.36",
+    "uvicorn[standard]>=0.34",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28",
+    "pytest>=8.3",
+    "pytest-asyncio>=0.25",
+    "ruff>=0.9",
+]
+
+[build-system]
+requires = ["uv_build>=0.12.11,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "conserve_naija"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "C4", "RET", "ASYNC"]
+ignore = ["B008"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"
+addopts = "-q"

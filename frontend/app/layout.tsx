@@ -1,97 +1,46 @@
-import type { Metadata, Viewport } from "next"
-import { Manrope } from "next/font/google"
-
-import { Provider } from "@/app/provider"
-import { JsonLd } from "@/components/seo/json-ld"
-import {
-    organizationJsonLd,
-    SITE_DESCRIPTION,
-    SITE_KEYWORDS,
-    SITE_NAME,
-    siteOgImages,
-    siteOrigin,
-    siteTwitterImages,
-} from "@/lib/seo"
-import { APP_BACKGROUND } from "@/lib/theme"
+import { Geist_Mono, Manrope } from "next/font/google"
 
 import "./globals.css"
+import { ThemeProvider } from "@/components/theme-provider"
+import { AppWsProvider } from "@/components/ws/app-ws-provider"
+import { cn } from "@/lib/utils"
+import { SITE_DESCRIPTION, SITE_NAME } from "@/lib/seo"
 
-const manrope = Manrope({
-    subsets: ["latin"],
-    variable: "--font-manrope",
-})
-
-const appOrigin = siteOrigin()
-
-export const metadata: Metadata = {
-    metadataBase: new URL(appOrigin),
+export const metadata = {
     title: {
         default: SITE_NAME,
-        template: `%s · ${SITE_NAME}`,
+        template: `%s | ${SITE_NAME}`,
     },
     description: SITE_DESCRIPTION,
-    keywords: SITE_KEYWORDS,
-    applicationName: SITE_NAME,
-    authors: [{ name: SITE_NAME }],
-    creator: SITE_NAME,
-    category: "recycling",
-    icons: {
-        icon: [
-            { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-            { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-            {
-                url: "/android-chrome-192x192.png",
-                sizes: "192x192",
-                type: "image/png",
-            },
-            {
-                url: "/android-chrome-512x512.png",
-                sizes: "512x512",
-                type: "image/png",
-            },
-        ],
-        apple: [{ url: "/apple-touch-icon.png", sizes: "180x180" }],
-        shortcut: ["/favicon-32x32.png"],
-    },
-    appleWebApp: {
-        capable: true,
-        title: SITE_NAME,
-        statusBarStyle: "black-translucent",
-    },
-    openGraph: {
-        type: "website",
-        siteName: SITE_NAME,
-        title: SITE_NAME,
-        description: SITE_DESCRIPTION,
-        url: appOrigin,
-        locale: "en_NG",
-        images: siteOgImages(),
-    },
-    twitter: {
-        card: "summary_large_image",
-        title: SITE_NAME,
-        description: SITE_DESCRIPTION,
-        images: siteTwitterImages(),
-    },
-    robots: {
-        index: true,
-        follow: true,
-    },
 }
 
-export const viewport: Viewport = {
-    themeColor: APP_BACKGROUND,
-    colorScheme: "dark",
-}
+const manrope = Manrope({ subsets: ["latin"], variable: "--font-manrope" })
+
+const fontMono = Geist_Mono({
+    subsets: ["latin"],
+    variable: "--font-mono",
+})
 
 export default function RootLayout({
     children,
-}: Readonly<{ children: React.ReactNode }>) {
+}: Readonly<{
+    children: React.ReactNode
+}>) {
     return (
-        <html lang="en" className={`${manrope.variable} ${manrope.className} dark`}>
+        <html
+            lang="en"
+            suppressHydrationWarning
+            className={cn(
+                "antialiased",
+                fontMono.variable,
+                "font-sans",
+                manrope.variable
+            )}
+        >
             <body>
-                <JsonLd data={organizationJsonLd()} />
-                <Provider>{children}</Provider>
+                <ThemeProvider>
+                    <AppWsProvider>{children}</AppWsProvider>
+                </ThemeProvider>
             </body>
         </html>
     )

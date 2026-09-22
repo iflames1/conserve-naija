@@ -1,39 +1,26 @@
-# syntax=docker/dockerfile:1.7
-#
-# Container image for cn-server.
-# Build context: this `backend/` directory.
-#
-# Postgres → Docker Compose locally, Docker on Railway in production (DATABASE_URL).
+FROM python:3.12-slim
 
-FROM rust:1.94-bookworm AS builder
+# uv installs into the system interpreter location so the runtime stage needs no
+# virtualenv activation.
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/usr/local \
+    UV_COMPILE_BYTECODE=1 \
+    UV_LINK_MODE=copy
 
-WORKDIR /src
-COPY Cargo.toml Cargo.lock ./
-COPY crates ./crates
-COPY migrations ./migrations
-
-RUN cargo build --release -p cn-server \
-    && strip target/release/cn-server
-
-FROM debian:bookworm-slim AS runtime
-
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-COPY --from=builder /src/target/release/cn-server /app/cn-server
-COPY --from=builder /src/migrations /app/migrations
+# Dependencies are installed from the lockfile before the source is copied so a
+# code edit does not invalidate the dependency layer.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev --no-install-project
 
-# Do not bake PORT. Railway injects it at runtime and the public proxy
-# forwards to that port. Local compose still sets PORT=8080.
-ENV HOST=0.0.0.0 \
-    MIGRATIONS_DIR=/app/migrations \
-    RUST_LOG=info,cn_server=info
+COPY . .
+RUN uv sync --frozen --no-dev
 
+ENV PORT=8080
 EXPOSE 8080
 
-USER nobody
-
-CMD ["/app/cn-server"]
+CMD ["sh", "-c", "uvicorn conserve_naija.main:app --host 0.0.0.0 --port ${PORT}"]
