@@ -1,6 +1,7 @@
 "use client"
 
 import { create } from "zustand"
+import { persist } from "zustand/middleware"
 
 export type MissionStatus =
     | "idle"
@@ -51,44 +52,56 @@ type SessionState = {
     }
 }
 
-export const useSessionStore = create<SessionState>((set) => ({
-    mission: null,
-    actions: {
-        setMission: (mission) => set({ mission }),
-        setStatus: (status) =>
-            set((state) =>
-                state.mission
-                    ? { mission: { ...state.mission, status } }
-                    : state
-            ),
-        applyServerUpdate: (update) =>
-            set((state) => {
-                if (!state.mission) return state
-                // Ignore events for a different session (an older mission may
-                // still be finishing while a new one is open).
-                if (update.id && update.id !== state.mission.id) return state
+// The mission is persisted because the OTP is only ever returned once, at
+// creation. Without this a reload would lose the code the citizen needs.
+export const useSessionStore = create<SessionState>()(
+    persist(
+        (set) => ({
+            mission: null,
+            actions: {
+                setMission: (mission) => set({ mission }),
+                setStatus: (status) =>
+                    set((state) =>
+                        state.mission
+                            ? { mission: { ...state.mission, status } }
+                            : state
+                    ),
+                applyServerUpdate: (update) =>
+                    set((state) => {
+                        if (!state.mission) return state
+                        // Ignore events for a different session (an older
+                        // mission may still be finishing while a new one opens).
+                        if (update.id && update.id !== state.mission.id)
+                            return state
 
-                const result =
-                    update.deposit_id !== undefined &&
-                    update.status === "completed"
-                        ? {
-                              depositId: update.deposit_id,
-                              conservePoints: update.conserve_points ?? 0,
-                              fractions: update.fractions ?? [],
-                          }
-                        : state.mission.result
+                        const result =
+                            update.deposit_id !== undefined &&
+                            update.status === "completed"
+                                ? {
+                                      depositId: update.deposit_id,
+                                      conservePoints:
+                                          update.conserve_points ?? 0,
+                                      fractions: update.fractions ?? [],
+                                  }
+                                : state.mission.result
 
-                return {
-                    mission: {
-                        ...state.mission,
-                        status: update.status ?? state.mission.status,
-                        result,
-                    },
-                }
-            }),
-        reset: () => set({ mission: null }),
-    },
-}))
+                        return {
+                            mission: {
+                                ...state.mission,
+                                status: update.status ?? state.mission.status,
+                                result,
+                            },
+                        }
+                    }),
+                reset: () => set({ mission: null }),
+            },
+        }),
+        {
+            name: "conserve-naija-mission",
+            partialize: (state) => ({ mission: state.mission }),
+        }
+    )
+)
 
 export const useMission = () => useSessionStore((state) => state.mission)
 export const useSessionActions = () => useSessionStore((state) => state.actions)
