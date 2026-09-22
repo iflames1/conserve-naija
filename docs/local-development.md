@@ -62,6 +62,25 @@ Wokwi device credential:
 - machine: `CN-MACHINE-001`
 - site: `Yaba`
 
+## Accounts and roles
+
+Anyone can create an account from `/auth/sign-up`. A signed-in user is a citizen
+and can start recycling missions.
+
+Platform administrators are configured by email, never seeded with a password.
+Set `ADMIN_EMAILS` to a comma-separated list:
+
+```text
+ADMIN_EMAILS=you@example.com,teammate@example.com
+```
+
+When an account signs up or signs in with one of those emails, the backend grants
+it the `admin` role and organisation administration automatically, so adding a
+teammate needs no migration or manual database edit.
+
+Administrators manage organisation access at `/organisation/members`, where they
+can add an existing account by email as a member or administrator.
+
 ## Start the frontend
 
 Open a second terminal in the repository root:
@@ -101,9 +120,25 @@ The public simulator is cloned beside this repository:
 cd /home/flames/yo/win/conserve-naija-wokwi
 ```
 
-It contains a prebuilt ESP32 firmware image and `diagram.json`. Its firmware calls the compatibility endpoints under `/iot/devices/me/...`, which the FastAPI backend keeps available. The simulator currently points at the deployed Railway API; use the Wokwi viewer README or rebuild the firmware with a local API host when testing against localhost.
+It contains the firmware source (`sketch.ino`), the wiring (`diagram.json`), and a
+prebuilt `firmware.bin` that the public viewer loads. The firmware calls the
+compatibility endpoints under `/iot/devices/me/...`, which the FastAPI backend
+keeps available, and reports only physical measurements — CP calculation stays in
+the backend.
 
-The simulator reports only machine measurements. CP calculation remains in the backend.
+The API host is compiled into the image. After the backend moves, rebuild it:
+
+```fish
+cd /home/flames/yo/win/conserve-naija-wokwi
+pio run
+cp .pio/build/esp32dev/firmware.bin firmware.bin
+```
+
+To point the simulator at your local backend instead:
+
+```fish
+PLATFORMIO_BUILD_FLAGS='-DCN_API_HOST="http://host.wokwi.internal:8080"' pio run
+```
 
 ## Vercel frontend deployment
 
@@ -131,6 +166,7 @@ DATABASE_URL=postgresql+asyncpg://<user>:<password>@<host>:<port>/<database>
 JWT_SECRET=<long-random-secret>
 CORS_ORIGINS=["https://<your-vercel-domain>"]
 ENVIRONMENT=production
+ADMIN_EMAILS=you@example.com
 ```
 
 The Docker command runs `alembic upgrade head` before Uvicorn starts. Railway health-checks `/health` on port `8080` (or its injected `PORT`). Never use the local demo password or the local JWT secret in Railway.
