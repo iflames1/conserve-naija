@@ -17,6 +17,10 @@ export function MissionStart() {
 
     function startMission() {
         setError(null)
+        if (!window.localStorage.getItem("conserve-naija-token")) {
+            router.push("/auth/login?next=/deposit")
+            return
+        }
         startTransition(async () => {
             try {
                 const response = await fetch(
@@ -25,7 +29,7 @@ export function MissionStart() {
                         method: "POST",
                         headers: {
                             "Content-Type": "application/json",
-                            Authorization: "Bearer demo-citizen-token",
+                            Authorization: `Bearer ${window.localStorage.getItem("conserve-naija-token")}`,
                         },
                         body: "{}",
                     }

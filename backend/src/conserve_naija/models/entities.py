@@ -29,6 +29,7 @@ class User(UUIDPrimaryKeyMixin, TimestampMixin, Base):
 
     email: Mapped[str] = mapped_column(String(320), unique=True, index=True)
     display_name: Mapped[str] = mapped_column(String(160), default="")
+    password_hash: Mapped[str | None] = mapped_column(String(255))
     roles: Mapped[list[UserRole]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )

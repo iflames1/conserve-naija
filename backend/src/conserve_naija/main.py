@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from conserve_naija.api.auth import router as auth_router
 from conserve_naija.api.routes import router as api_router
 from conserve_naija.api.websocket import router as websocket_router
 from conserve_naija.config import get_settings
@@ -32,6 +33,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.include_router(api_router)
+    app.include_router(auth_router)
     app.include_router(websocket_router)
 
     @app.get("/health", tags=["system"])
