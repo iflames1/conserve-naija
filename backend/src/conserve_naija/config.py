@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     app_name: str = "Conserve Naija"
     environment: str = "local"
     database_url: str = "postgresql+asyncpg://conserve:conserve@localhost:5432/conserve_naija"
+    jwt_secret: str = "local-development-secret-change-me"
     cors_origins: list[str] = ["http://localhost:3000"]
 
 

@@ -3,6 +3,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from conserve_naija.api.routes import router as api_router
 from conserve_naija.config import get_settings
 
 __version__ = "0.1.0"
@@ -29,6 +30,7 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    app.include_router(api_router)
 
     @app.get("/health", tags=["system"])
     async def health() -> dict[str, str]:
