@@ -24,7 +24,7 @@ export default function HowItWorksPage() {
             <Link className="font-display" href="/">
                 Conserve Naija
             </Link>
-            <h1 className="font-display mt-20 text-5xl tracking-tight">
+            <h1 className="mt-20 font-display text-5xl tracking-tight">
                 A clear path from material to value.
             </h1>
             <div className="mt-12 divide-y divide-border border-y border-border">

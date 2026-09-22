@@ -34,6 +34,8 @@ class DepositOutcome:
     """
 
     deposit_id: uuid.UUID
+    session_id: uuid.UUID
+    user_id: uuid.UUID | None
     conserve_points: int
     fractions: list[dict[str, int | str]]
     status: str
@@ -118,6 +120,8 @@ async def confirm_measurement(
         ).all()
         return DepositOutcome(
             deposit_id=duplicate.id,
+            session_id=session.id,
+            user_id=session.user_id,
             conserve_points=sum(fraction.conserve_points for fraction, _ in rows),
             fractions=[
                 {
@@ -223,6 +227,8 @@ async def confirm_measurement(
     await db.commit()
     return DepositOutcome(
         deposit_id=deposit.id,
+        session_id=session.id,
+        user_id=session.user_id,
         conserve_points=total,
         fractions=[
             {
